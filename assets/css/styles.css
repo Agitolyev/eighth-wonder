@@ -237,6 +237,41 @@ input[type="range"] {
   margin: 0.25rem 0 0;
 }
 
+/* Reinvestment (whole-unit) control */
+.reinvest-field {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 0.95rem;
+  background: rgba(255, 255, 255, 0.015);
+}
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: var(--text);
+  margin-bottom: 0.7rem;
+}
+.checkbox input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--compound);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.reinvest-field.is-off #stepWrap { opacity: 0.45; pointer-events: none; }
+.micro {
+  font-size: 0.76rem;
+  color: var(--faint);
+  margin: 0.6rem 0 0;
+  line-height: 1.45;
+}
+
+#c_idle_row.is-hidden { display: none; }
+#c_idle_row dd { color: var(--muted); }
+
 /* ---------- Results ---------- */
 .compare {
   display: grid;

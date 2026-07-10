@@ -23,6 +23,11 @@ It comes pre-loaded with the propositions I'm actually investing in:
 - **Withdraw vs Reinvest** compared side by side: total invested, income
   withdrawn / interest earned, and ending net worth.
 - The **compounding advantage** — how much extra reinvesting earns you.
+- **Whole-unit reinvestment** — you can't buy a fraction of a fund unit (a ₴10
+  REIT certificate, a ₴6,000 Energy certificate…), so payouts and top-ups are
+  pooled and only buy whole units; anything left over waits as **uninvested
+  cash** until it can afford the next one. Toggle it off to model ideal,
+  fraction-friendly reinvestment.
 - Interactive growth chart + a year-by-year breakdown table.
 - Optional recurring monthly top-up.
 - Toggle between **$ USD** and **₴ UAH** display.

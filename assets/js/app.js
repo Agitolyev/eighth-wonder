@@ -21,6 +21,9 @@
     contribution: $("contribution"),
     rate: $("rate"),
     frequency: $("frequency"),
+    wholeUnits: $("wholeUnits"),
+    step: $("step"),
+    stepField: document.querySelector(".reinvest-field"),
     years: $("years"),
     yearsLabel: $("yearsLabel"),
     horizonOut: $("horizonOut"),
@@ -32,6 +35,8 @@
     s_total: $("s_total"),
     c_invested: $("c_invested"),
     c_interest: $("c_interest"),
+    c_idle: $("c_idle"),
+    c_idle_row: $("c_idle_row"),
     c_total: $("c_total"),
     advantage: $("advantage"),
     advantagePct: $("advantagePct"),
@@ -57,11 +62,21 @@
    * snapshot at the end of every year.
    *
    *  Withdraw (simple): each period's return is paid out as cash income and
-   *    NOT reinvested. Principal only grows through top-ups. "Net worth" =
-   *    remaining capital + all income withdrawn to date.
+   *    NOT reinvested. Working capital only grows through top-ups. "Net worth"
+   *    = working capital + idle cash + all income withdrawn to date.
    *
-   *  Reinvest (compound): each period's return is added back to the balance,
-   *    so next period earns on a larger base. Top-ups are added too.
+   *  Reinvest (compound): each period's return is fed back in, so next period
+   *    earns on a larger base.
+   *
+   * Fixed unit step: you can't buy a fraction of a fund unit (a REIT
+   * certificate, an Energy certificate, …). Any cash going IN — top-ups, and
+   * reinvested payouts — is pooled in a cash buffer and only buys whole units
+   * of `step`; the remainder waits as idle cash until it can afford the next
+   * unit. Set step <= 0 (checkbox off) for ideal, fraction-friendly investing.
+   *
+   * Non-distributing funds (Inzhur Energy) pay no cash payout, so their return
+   * revalues internally and compounds fractionally regardless of the step; only
+   * fresh top-ups have to clear the unit price.
    * --------------------------------------------------------------------- */
   function simulate(input) {
     var periodsPerYear = input.frequency;               // 12 / 4 / 1
@@ -69,52 +84,74 @@
     var periodicRate = input.rate / 100 / periodsPerYear;
     // A monthly top-up spread across each compounding period.
     var contributionPerPeriod = input.monthly * (12 / periodsPerYear);
+    var step = input.wholeUnits ? Math.max(0, input.step) : 0;
+    var distributes = input.distributes;
+
+    // Move as many whole units as the buffer allows into `invested`.
+    // Returns [newInvested, remainingBuffer].
+    function buyUnits(investedAmt, buffer) {
+      if (step > 0) {
+        var amount = Math.floor(buffer / step) * step;
+        return [investedAmt + amount, buffer - amount];
+      }
+      return [investedAmt + buffer, 0]; // fractional: invest everything
+    }
 
     // Withdraw / simple
-    var simplePrincipal = input.principal; // capital, grows only via top-ups
-    var incomeWithdrawn = 0;
-
+    var wInvested = input.principal, wBuffer = 0, income = 0;
     // Reinvest / compound
-    var compoundBalance = input.principal;
+    var rInvested = input.principal, rBuffer = 0;
 
-    var invested = input.principal;
+    var contributed = input.principal;
 
     var rows = [{
       year: 0,
-      invested: invested,
+      contributed: contributed,
       simpleNet: input.principal,
       compound: input.principal,
     }];
 
     for (var p = 1; p <= totalPeriods; p++) {
-      // interest for this period
-      incomeWithdrawn += simplePrincipal * periodicRate;
-      compoundBalance += compoundBalance * periodicRate;
+      // Interest / payout for this period.
+      income += wInvested * periodicRate;              // withdraw: pocketed
+      var payout = rInvested * periodicRate;
+      if (distributes) {
+        rBuffer += payout;                             // cash payout -> buy whole units
+      } else {
+        rInvested += payout;                           // internal revaluation -> compounds
+      }
 
-      // top-ups happen after interest is credited
-      simplePrincipal += contributionPerPeriod;
-      compoundBalance += contributionPerPeriod;
-      invested += contributionPerPeriod;
+      // Top-ups arrive as cash and must also clear the unit price.
+      contributed += contributionPerPeriod;
+      wBuffer += contributionPerPeriod;
+      rBuffer += contributionPerPeriod;
+
+      var wb = buyUnits(wInvested, wBuffer); wInvested = wb[0]; wBuffer = wb[1];
+      var rb = buyUnits(rInvested, rBuffer); rInvested = rb[0]; rBuffer = rb[1];
 
       if (p % periodsPerYear === 0) {
         rows.push({
           year: p / periodsPerYear,
-          invested: invested,
-          simpleNet: simplePrincipal + incomeWithdrawn,
-          compound: compoundBalance,
+          contributed: contributed,
+          simpleNet: wInvested + wBuffer + income,
+          compound: rInvested + rBuffer,
         });
       }
     }
 
     return {
-      invested: invested,
-      simpleCapital: simplePrincipal,
-      incomeWithdrawn: incomeWithdrawn,
-      simpleNet: simplePrincipal + incomeWithdrawn,
-      compound: compoundBalance,
-      compoundInterest: compoundBalance - invested,
+      contributed: contributed,
+      incomeWithdrawn: income,
+      simpleNet: wInvested + wBuffer + income,
+      compound: rInvested + rBuffer,
+      compoundInterest: (rInvested + rBuffer) - contributed,
+      idleCash: rBuffer,
       rows: rows,
     };
+  }
+
+  function currentProp() {
+    return PROPS.filter(function (x) { return x.id === state.propId; })[0] || {};
   }
 
   // ---- Read inputs ----
@@ -125,6 +162,9 @@
       rate: Math.max(0, parseFloat(els.rate.value) || 0),
       frequency: parseInt(els.frequency.value, 10) || 12,
       years: parseInt(els.years.value, 10) || 1,
+      wholeUnits: els.wholeUnits.checked,
+      step: Math.max(0, parseFloat(els.step.value) || 0),
+      distributes: currentProp().distributes !== false,
     };
   }
 
@@ -136,13 +176,18 @@
     els.yearsLabel.textContent = input.years + (input.years === 1 ? " year" : " years");
     els.horizonOut.textContent = input.years;
 
-    els.s_invested.textContent = fmt(r.invested);
+    els.s_invested.textContent = fmt(r.contributed);
     els.s_income.textContent = fmt(r.incomeWithdrawn);
     els.s_total.textContent = fmt(r.simpleNet);
 
-    els.c_invested.textContent = fmt(r.invested);
+    els.c_invested.textContent = fmt(r.contributed);
     els.c_interest.textContent = fmt(r.compoundInterest);
     els.c_total.textContent = fmt(r.compound);
+
+    // Idle cash only matters when whole-unit reinvestment leaves a remainder.
+    var showIdle = input.wholeUnits && input.step > 0 && Math.round(r.idleCash) > 0;
+    els.c_idle.textContent = fmt(r.idleCash);
+    els.c_idle_row.classList.toggle("is-hidden", !showIdle);
 
     var advantage = r.compound - r.simpleNet;
     els.advantage.textContent = fmtSigned(advantage);
@@ -165,7 +210,7 @@
 
     var maxY = 0;
     rows.forEach(function (d) {
-      maxY = Math.max(maxY, d.compound, d.simpleNet, d.invested);
+      maxY = Math.max(maxY, d.compound, d.simpleNet, d.contributed);
     });
     maxY = niceCeil(maxY);
     var maxX = rows[rows.length - 1].year || 1;
@@ -217,7 +262,7 @@
         '</defs>' +
         grid + yLabels + xLabels +
         '<path d="' + area("compound") + '" fill="url(#fillC)" />' +
-        '<path d="' + path("invested") + '" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4" />' +
+        '<path d="' + path("contributed") + '" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4" />' +
         '<path d="' + path("simpleNet") + '" fill="none" stroke="#38bdf8" stroke-width="2.5" />' +
         '<path d="' + path("compound") + '" fill="none" stroke="#34d399" stroke-width="2.5" />' +
         endDot(x(maxX), y(rows[rows.length - 1].compound), "#34d399") +
@@ -254,7 +299,7 @@
       var diff = d.compound - d.simpleNet;
       html += "<tr>" +
         "<td>" + d.year + "</td>" +
-        "<td>" + fmt(d.invested) + "</td>" +
+        "<td>" + fmt(d.contributed) + "</td>" +
         "<td>" + fmt(d.simpleNet) + "</td>" +
         "<td>" + fmt(d.compound) + "</td>" +
         '<td class="diff">' + fmtSigned(diff) + "</td>" +
@@ -308,6 +353,15 @@
     if (p.minInvestment && (parseFloat(els.principal.value) || 0) < p.minInvestment) {
       els.principal.value = p.minInvestment;
     }
+    // The unit / minimum-investment step drives whole-unit reinvestment.
+    if (p.minInvestment && p.minInvestment > 0) {
+      els.step.value = p.minInvestment;
+      els.wholeUnits.checked = true;
+    } else {
+      els.step.value = 0;
+      els.wholeUnits.checked = false;
+    }
+    syncStepState();
     els.propNote.textContent = p.note + (p.url ? "" : "");
 
     // reflect active state on cards
@@ -325,14 +379,24 @@
     return payout === "annual" ? 1 : payout === "quarterly" ? 4 : 12;
   }
 
+  // Grey out the step input when whole-unit reinvestment is disabled.
+  function syncStepState() {
+    els.stepField.classList.toggle("is-off", !els.wholeUnits.checked);
+  }
+
   /* -----------------------------------------------------------------------
    * Wire up events
    * --------------------------------------------------------------------- */
   function init() {
     renderCards();
 
-    ["principal", "contribution", "rate", "frequency", "years"].forEach(function (k) {
+    ["principal", "contribution", "rate", "frequency", "years", "step"].forEach(function (k) {
       els[k].addEventListener("input", render);
+    });
+
+    els.wholeUnits.addEventListener("change", function () {
+      syncStepState();
+      render();
     });
 
     els.curBtns.forEach(function (b) {

@@ -67,6 +67,23 @@
           </select>
         </label>
 
+        <div class="field reinvest-field">
+          <label class="checkbox">
+            <input id="wholeUnits" type="checkbox" checked />
+            <span>Reinvest payouts in whole units only</span>
+          </label>
+          <div class="input-affix" id="stepWrap">
+            <span class="affix" data-affix="currency">$</span>
+            <input id="step" type="number" min="0" step="1" value="10" inputmode="decimal" aria-label="Unit / minimum investment step" />
+            <span class="affix affix-right">per unit</span>
+          </div>
+          <p class="micro">
+            You can&rsquo;t reinvest less than one unit — payouts smaller than
+            this wait as cash until they add up to buy the next one. Uncheck to
+            model ideal, fraction-friendly reinvestment.
+          </p>
+        </div>
+
         <label class="field">
           <span>Time horizon: <strong id="yearsLabel">10 years</strong></span>
           <input id="years" type="range" min="1" max="30" step="1" value="10" />
@@ -91,7 +108,7 @@
             </header>
             <p class="hint">You pocket every payout as income. Capital stays flat.</p>
             <dl>
-              <div><dt>Total invested</dt><dd id="s_invested">—</dd></div>
+              <div><dt>Total contributed</dt><dd id="s_invested">—</dd></div>
               <div><dt>Income withdrawn</dt><dd id="s_income">—</dd></div>
               <div class="total"><dt>Net worth</dt><dd id="s_total">—</dd></div>
             </dl>
@@ -104,8 +121,9 @@
             </header>
             <p class="hint">Every payout rolls back in and starts earning too.</p>
             <dl>
-              <div><dt>Total invested</dt><dd id="c_invested">—</dd></div>
+              <div><dt>Total contributed</dt><dd id="c_invested">—</dd></div>
               <div><dt>Interest earned</dt><dd id="c_interest">—</dd></div>
+              <div id="c_idle_row"><dt>Uninvested cash</dt><dd id="c_idle">—</dd></div>
               <div class="total"><dt>Ending balance</dt><dd id="c_total">—</dd></div>
             </dl>
           </article>
@@ -122,7 +140,7 @@
           <figcaption class="legend">
             <span class="lg lg-compound">Reinvest (net worth)</span>
             <span class="lg lg-simple">Withdraw (net worth)</span>
-            <span class="lg lg-invested">Total invested</span>
+            <span class="lg lg-invested">Total contributed</span>
           </figcaption>
         </figure>
 
@@ -133,7 +151,7 @@
               <thead>
                 <tr>
                   <th>Year</th>
-                  <th>Invested</th>
+                  <th>Contributed</th>
                   <th>Withdraw · net worth</th>
                   <th>Reinvest · balance</th>
                   <th>Difference</th>
