@@ -67,12 +67,17 @@ With no top-ups this reproduces the textbook formulas exactly —
 The site is the repository root (plain static files), deployed by
 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml).
 
-To turn it on once this is on the default branch:
+**Enable Pages once before the first deploy** (this step is required — the
+workflow's built-in token can't create the Pages site on its own):
 
 1. Go to **Settings → Pages**.
 2. Under **Build and deployment → Source**, choose **GitHub Actions**.
 3. Push to `main` (or run the workflow manually) — the site publishes to
    `https://<user>.github.io/eighth-wonder/`.
+
+If you skip step 2 the deploy fails with *"Get Pages site failed … Not
+Found"* / *"Resource not accessible by integration"*. Enabling the
+**GitHub Actions** source is what fixes it.
 
 A `.nojekyll` file is included so the `assets/` folder is served untouched.
 
