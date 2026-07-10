@@ -1,7 +1,8 @@
 name: Deploy to GitHub Pages
 
 # Deploys the static site (repository root) to GitHub Pages.
-# In the repo Settings → Pages, set "Source" to "GitHub Actions".
+# The Configure Pages step enables Pages (GitHub Actions source) on first run,
+# so no manual repo Settings → Pages change is required.
 on:
   push:
     branches: [main]
@@ -29,6 +30,10 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Enable Pages (GitHub Actions source) if it isn't already, instead
+          # of failing with "Get Pages site failed ... Not Found".
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
