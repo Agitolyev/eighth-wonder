@@ -355,7 +355,7 @@ input[type="range"] {
 
 /* ---------- Chart ---------- */
 .chart { margin: 0 0 1rem; }
-#chart svg { width: 100%; height: auto; display: block; }
+#chart svg { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: none; }
 .legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem; font-size: 0.82rem; color: var(--muted); }
 .lg { display: inline-flex; align-items: center; gap: 0.4rem; }
 .lg::before { content: ""; width: 16px; height: 3px; border-radius: 2px; }

@@ -13,6 +13,9 @@
     currency: "$",
   };
 
+  // Geometry + data of the most recently drawn chart, for hover interaction.
+  var chartHover = null;
+
   // ---- Element helpers ----
   function $(id) { return document.getElementById(id); }
   var els = {
@@ -272,9 +275,100 @@
         '<path d="' + path("compound") + '" fill="none" stroke="#34d399" stroke-width="2.5" />' +
         endDot(x(maxX), y(rows[rows.length - 1].compound), "#34d399") +
         endDot(x(maxX), y(rows[rows.length - 1].simpleNet), "#38bdf8") +
+        hoverLayer() +
       "</svg>";
 
     els.chart.innerHTML = svg;
+
+    // Remember everything the hover handler needs to map cursor -> data point.
+    chartHover = {
+      rows: rows, x: x, y: y, m: m, iw: iw, ih: ih, W: W, H: H, maxX: maxX,
+    };
+  }
+
+  /* -----------------------------------------------------------------------
+   * Hover layer — a crosshair, one dot per series and a tooltip that light
+   * up as the cursor moves across the chart. Hidden until first hover.
+   * --------------------------------------------------------------------- */
+  var TIP_W = 176, TIP_H = 96;
+  function hoverLayer() {
+    return (
+      '<g id="hoverLayer" style="display:none" pointer-events="none">' +
+        '<line id="hoverLine" stroke="rgba(148,163,184,0.55)" stroke-width="1" stroke-dasharray="3 3" />' +
+        '<circle id="hoverDotI" r="4" fill="#64748b" stroke="#0b1120" stroke-width="2" />' +
+        '<circle id="hoverDotS" r="5" fill="#38bdf8" stroke="#0b1120" stroke-width="2" />' +
+        '<circle id="hoverDotC" r="5" fill="#34d399" stroke="#0b1120" stroke-width="2" />' +
+        '<g id="hoverTip">' +
+          '<rect width="' + TIP_W + '" height="' + TIP_H + '" rx="8" ry="8" ' +
+            'fill="rgba(11,17,32,0.94)" stroke="rgba(148,163,184,0.28)" stroke-width="1" />' +
+          '<text id="tipYear" x="12" y="21" fill="#e5edff" font-size="12" font-weight="700"></text>' +
+          '<circle cx="15" cy="38" r="4" fill="#34d399" />' +
+          '<text x="26" y="42" fill="#9fb0cc" font-size="11">Reinvest</text>' +
+          '<text id="tipC" x="' + (TIP_W - 12) + '" y="42" text-anchor="end" fill="#e5edff" font-size="11" font-weight="600"></text>' +
+          '<circle cx="15" cy="58" r="4" fill="#38bdf8" />' +
+          '<text x="26" y="62" fill="#9fb0cc" font-size="11">Withdraw</text>' +
+          '<text id="tipS" x="' + (TIP_W - 12) + '" y="62" text-anchor="end" fill="#e5edff" font-size="11" font-weight="600"></text>' +
+          '<circle cx="15" cy="78" r="4" fill="#64748b" />' +
+          '<text x="26" y="82" fill="#9fb0cc" font-size="11">Contributed</text>' +
+          '<text id="tipI" x="' + (TIP_W - 12) + '" y="82" text-anchor="end" fill="#e5edff" font-size="11" font-weight="600"></text>' +
+        '</g>' +
+      '</g>'
+    );
+  }
+
+  function onChartHover(e) {
+    var h = chartHover;
+    if (!h) return;
+    var svg = els.chart.querySelector("svg");
+    if (!svg || !svg.getScreenCTM) return;
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return;
+
+    // Map the pointer position into the SVG's own coordinate system.
+    var pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    var loc = pt.matrixTransform(ctm.inverse());
+
+    // Nearest whole year (rows are one snapshot per year, indexed by year).
+    var frac = h.iw ? (loc.x - h.m.left) / h.iw : 0;
+    frac = Math.max(0, Math.min(1, frac));
+    var year = Math.round(frac * h.maxX);
+    var d = h.rows[year];
+    if (!d) return;
+
+    var px = h.x(d.year);
+    setAttrs(svg.querySelector("#hoverLine"), {
+      x1: px.toFixed(1), x2: px.toFixed(1),
+      y1: h.m.top, y2: (h.m.top + h.ih),
+    });
+    setAttrs(svg.querySelector("#hoverDotC"), { cx: px.toFixed(1), cy: h.y(d.compound).toFixed(1) });
+    setAttrs(svg.querySelector("#hoverDotS"), { cx: px.toFixed(1), cy: h.y(d.simpleNet).toFixed(1) });
+    setAttrs(svg.querySelector("#hoverDotI"), { cx: px.toFixed(1), cy: h.y(d.contributed).toFixed(1) });
+
+    svg.querySelector("#tipYear").textContent = "Year " + d.year;
+    svg.querySelector("#tipC").textContent = fmt(d.compound);
+    svg.querySelector("#tipS").textContent = fmt(d.simpleNet);
+    svg.querySelector("#tipI").textContent = fmt(d.contributed);
+
+    // Keep the tooltip inside the plot: flip to the left near the right edge.
+    var tipX = px + 14;
+    if (tipX + TIP_W > h.W - h.m.right) tipX = px - 14 - TIP_W;
+    tipX = Math.max(h.m.left, Math.min(tipX, h.W - h.m.right - TIP_W));
+    var tipY = Math.max(h.m.top, Math.min(h.m.top + 6, h.m.top + h.ih - TIP_H));
+    svg.querySelector("#hoverTip").setAttribute("transform", "translate(" + tipX.toFixed(1) + " " + tipY.toFixed(1) + ")");
+
+    svg.querySelector("#hoverLayer").style.display = "";
+  }
+
+  function hideChartHover() {
+    if (!chartHover) return;
+    var layer = els.chart.querySelector("#hoverLayer");
+    if (layer) layer.style.display = "none";
+  }
+
+  function setAttrs(node, attrs) {
+    if (!node) return;
+    for (var k in attrs) node.setAttribute(k, attrs[k]);
   }
 
   function endDot(cx, cy, color) {
@@ -412,6 +506,10 @@
       syncStepState();
       render();
     });
+
+    // Chart hover: highlight the nearest data point and show its numbers.
+    els.chart.addEventListener("pointermove", onChartHover);
+    els.chart.addEventListener("pointerleave", hideChartHover);
 
     els.curBtns.forEach(function (b) {
       b.addEventListener("click", function () {
