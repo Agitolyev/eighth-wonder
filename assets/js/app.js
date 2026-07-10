@@ -54,6 +54,11 @@
     var s = fmt(Math.abs(n));
     return (n < 0 ? "−" : "+") + s;
   }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   /* -----------------------------------------------------------------------
    * Core simulation.
@@ -324,12 +329,17 @@
         ? "your rate"
         : "~" + p.rate + "% p.a. " + p.currency;
 
+      var asOf = p.dataAsOf
+        ? '<p class="asof"><span class="asof-dot"></span>Figures as of ' + p.dataAsOf + " · projected, not guaranteed</p>"
+        : "";
+
       btn.innerHTML =
         '<span class="check"></span>' +
         '<span class="op">' + p.operator + "</span>" +
         "<h3>" + p.name + ' <span class="rate">' + rateLine + "</span></h3>" +
         '<p class="tagline">' + p.tagline + "</p>" +
-        "<ul>" + p.highlights.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul>";
+        "<ul>" + p.highlights.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul>" +
+        asOf;
 
       btn.addEventListener("click", function () { selectProp(p.id); });
       els.cards.appendChild(btn);
@@ -362,7 +372,11 @@
       els.wholeUnits.checked = false;
     }
     syncStepState();
-    els.propNote.textContent = p.note + (p.url ? "" : "");
+    var meta = p.dataAsOf
+      ? '<span class="asof-badge" title="' + (p.source || "") + '">Data as of ' + p.dataAsOf + "</span> "
+      : "";
+    els.propNote.innerHTML = meta + escapeHtml(p.note) +
+      (p.source ? '<span class="prop-source">Source: ' + escapeHtml(p.source) + "</span>" : "");
 
     // reflect active state on cards
     var cards = els.cards.querySelectorAll(".card");

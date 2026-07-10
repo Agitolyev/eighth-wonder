@@ -24,6 +24,9 @@
  *  accent        theme colour for the card
  *  highlights    short bullet facts
  *  note          honesty / risk caveat
+ *  dataAsOf      date these figures were last verified (YYYY-MM-DD).
+ *                UPDATE THIS whenever you refresh a fund's numbers.
+ *  source        where the figures came from
  *  url           official offer page
  */
 window.PROPOSITIONS = [
@@ -49,6 +52,8 @@ window.PROPOSITIONS = [
       "Dividends are paid monthly, so you can either withdraw them (simple) " +
       "or reinvest them (compound). Actual yield depends on occupancy and the " +
       "property market — returns are not guaranteed.",
+    dataAsOf: "2026-07-10",
+    source: "inzhur.reit offer page + public reporting (Minfin, Kapitalistka)",
     url: "https://www.inzhur.reit/offer/inzhur-reit",
   },
   {
@@ -74,6 +79,8 @@ window.PROPOSITIONS = [
       "re-valued once a year, so returns compound automatically inside the " +
       "fund until you exit. The 'simple' column below shows what the same " +
       "rate would earn without that yearly compounding, for comparison.",
+    dataAsOf: "2026-07-10",
+    source: "inzhur.reit offer page + public reporting (Forbes.ua, dev.ua, Minfin)",
     url: "https://www.inzhur.reit/offer/inzhur-energy",
   },
   {

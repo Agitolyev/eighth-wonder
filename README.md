@@ -17,6 +17,12 @@ It comes pre-loaded with the propositions I'm actually investing in:
 > guaranteed**. Do your own research. This tool is for modelling only, not
 > investment advice.
 
+**Figures last verified: 2026-07-10.** Each fund's numbers are projections
+gathered from public sources on that date and shown with an explicit "Data
+as of …" stamp in the app. Rates change — always confirm against the fund's
+official offer page before acting, and update the `dataAsOf` field when you
+refresh them (see below).
+
 ## Features
 
 - Pick a proposition; the rate, payout frequency and term auto-fill (all editable).
@@ -80,3 +86,13 @@ assets/js/app.js         simulation + rendering
 ```
 
 Adding a new company is a one-object edit in `assets/js/data.js`.
+
+## Keeping the numbers current
+
+Every proposition in `assets/js/data.js` carries a `dataAsOf` date and a
+`source`. These are surfaced verbatim in the UI (a footer line on each card
+and a "Data as of …" badge next to the notes), so the app never presents a
+stale rate as if it were live. **When you refresh a fund's `rate` — or any
+other figure — bump its `dataAsOf` to the date you checked** and, if needed,
+update `source`. The `custom` proposition has no date because the numbers are
+your own.

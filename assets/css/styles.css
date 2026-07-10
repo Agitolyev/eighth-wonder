@@ -129,6 +129,21 @@ main section { margin-bottom: 2.5rem; }
   border-radius: 50%;
   background: var(--card-accent, var(--accent));
 }
+.card .asof {
+  margin: 0.9rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.card .asof-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--card-accent, var(--accent));
+  flex: 0 0 auto;
+}
 .card .check {
   position: absolute;
   top: 1rem; right: 1rem;
@@ -235,6 +250,24 @@ input[type="range"] {
   border-left: 2px solid var(--border);
   padding-left: 0.85rem;
   margin: 0.25rem 0 0;
+}
+.asof-badge {
+  display: inline-block;
+  background: rgba(45, 212, 191, 0.14);
+  color: var(--accent);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+.prop-source {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--faint);
 }
 
 /* Reinvestment (whole-unit) control */
