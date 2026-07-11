@@ -110,6 +110,15 @@
         </label>
 
         <p id="propNote" class="prop-note"></p>
+
+        <button type="button" id="addCompare" class="btn-add">
+          <span class="btn-add-icon" aria-hidden="true">+</span>
+          <span id="addCompareLabel">Add these assumptions to comparison</span>
+        </button>
+        <p class="micro">
+          Tweak the rate, top-up or horizon and add again to compare the same
+          fund under different assumptions — or pick another fund.
+        </p>
       </div>
 
       <div class="panel results">
@@ -150,11 +159,6 @@
           <span id="advantagePct" class="advantage-pct"></span>
         </div>
 
-        <button type="button" id="addCompare" class="btn-add">
-          <span class="btn-add-icon" aria-hidden="true">+</span>
-          <span id="addCompareLabel">Add this option to comparison</span>
-        </button>
-
         <figure class="chart">
           <div id="chart" role="img" aria-label="Growth chart comparing withdraw vs reinvest over time"></div>
           <figcaption class="legend">
@@ -190,8 +194,9 @@
       <div class="panel compare-panel">
         <div class="compare-head">
           <p class="compare-lead" id="compareLead">
-            Set up an option above and press <strong>Add this option to
-            comparison</strong> to plot several side by side.
+            Every option you add is plotted here side by side — compare
+            different funds, or the same fund under different rates, top-ups
+            and horizons.
           </p>
           <button type="button" id="clearCompare" class="btn-ghost" hidden>Clear all</button>
         </div>

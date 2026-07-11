@@ -557,7 +557,7 @@
       ? "Added to comparison"
       : full
         ? "Comparison full (" + COMPARE_MAX + " max)"
-        : "Add this option to comparison";
+        : "Add these assumptions to comparison";
   }
 
   function addComparison() {
@@ -585,12 +585,19 @@
     refreshAddButton();
   }
 
+  function freqLabel(frequency) {
+    return frequency === 1 ? "annual" : frequency === 4 ? "quarterly" : "monthly";
+  }
+
   // Re-simulate every entry in the active currency and return chart/table data.
+  // Amount-bearing labels are rebuilt here so they track the display currency.
   function computeComparisons() {
     return comparisons.map(function (c) {
+      var principal = Math.max(0, convert(c.baseUAH.principal, "UAH", state.currencyCode));
+      var monthly = Math.max(0, convert(c.baseUAH.contribution, "UAH", state.currencyCode));
       var input = {
-        principal: Math.max(0, convert(c.baseUAH.principal, "UAH", state.currencyCode)),
-        monthly: Math.max(0, convert(c.baseUAH.contribution, "UAH", state.currencyCode)),
+        principal: principal,
+        monthly: monthly,
         rate: c.rate,
         frequency: c.frequency,
         years: c.years,
@@ -599,12 +606,18 @@
         distributes: c.distributes,
       };
       var r = simulate(input);
+      // Describe the assumptions that make this entry distinct from another
+      // run of the same fund: starting amount, top-up and payout cadence.
+      var money = fmt(principal) + (monthly > 0 ? " +" + fmt(monthly) + "/mo" : "");
       return {
         id: c.id,
         color: c.color,
+        name: c.name,
         label: c.label,
         rate: c.rate,
         years: c.years,
+        moneyFreq: money + " · " + freqLabel(c.frequency),
+        chipDetail: money + " · " + c.years + "y · " + freqLabel(c.frequency),
         rows: r.rows.map(function (d) { return { year: d.year, value: d.compound }; }),
         withdraw: r.simpleNet,
         reinvest: r.compound,
@@ -626,7 +639,10 @@
     els.compareList.innerHTML = data.map(function (d) {
       return '<li class="compare-chip">' +
         '<span class="compare-swatch" style="background:' + d.color + '"></span>' +
-        '<span class="name">' + escapeHtml(d.label) + "</span>" +
+        '<span class="chip-text">' +
+          '<span class="name">' + escapeHtml(d.label) + "</span>" +
+          '<span class="detail">' + escapeHtml(d.chipDetail) + "</span>" +
+        "</span>" +
         '<span class="val">' + fmt(d.reinvest) + "</span>" +
         '<button type="button" class="compare-remove" data-id="' + d.id +
         '" aria-label="Remove ' + escapeHtml(d.label) + '">&times;</button>' +
@@ -635,7 +651,8 @@
 
     els.compareTableBody.innerHTML = data.map(function (d) {
       return "<tr>" +
-        "<td>" + escapeHtml(d.label) + "</td>" +
+        '<td><span class="opt-name">' + escapeHtml(d.name) + "</span>" +
+          '<span class="opt-detail">' + escapeHtml(d.moneyFreq) + "</span></td>" +
         "<td>" + d.rate + "%</td>" +
         "<td>" + d.years + (d.years === 1 ? " yr" : " yrs") + "</td>" +
         "<td>" + fmt(d.withdraw) + "</td>" +
