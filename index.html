@@ -150,6 +150,11 @@
           <span id="advantagePct" class="advantage-pct"></span>
         </div>
 
+        <button type="button" id="addCompare" class="btn-add">
+          <span class="btn-add-icon" aria-hidden="true">+</span>
+          <span id="addCompareLabel">Add this option to comparison</span>
+        </button>
+
         <figure class="chart">
           <div id="chart" role="img" aria-label="Growth chart comparing withdraw vs reinvest over time"></div>
           <figcaption class="legend">
@@ -176,6 +181,53 @@
             </table>
           </div>
         </details>
+      </div>
+    </section>
+
+    <!-- Multi-option comparison -->
+    <section aria-labelledby="compare-heading">
+      <h2 id="compare-heading" class="section-title">4 · Compare options</h2>
+      <div class="panel compare-panel">
+        <div class="compare-head">
+          <p class="compare-lead" id="compareLead">
+            Set up an option above and press <strong>Add this option to
+            comparison</strong> to plot several side by side.
+          </p>
+          <button type="button" id="clearCompare" class="btn-ghost" hidden>Clear all</button>
+        </div>
+
+        <p id="compareEmpty" class="compare-empty">
+          Nothing added yet — your saved options will appear here so you can
+          plot and compare them.
+        </p>
+
+        <div id="compareBody" hidden>
+          <ul id="compareList" class="compare-list" aria-label="Saved options"></ul>
+
+          <figure class="chart">
+            <div id="compareChart" role="img" aria-label="Reinvested net worth compared across saved options"></div>
+            <figcaption class="micro compare-caption">
+              Each line is an option&rsquo;s <strong>reinvested (compound) net
+              worth</strong> over time, in the selected currency.
+            </figcaption>
+          </figure>
+
+          <div class="table-scroll">
+            <table id="compareTable">
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th>Rate</th>
+                  <th>Horizon</th>
+                  <th>Withdraw · net</th>
+                  <th>Reinvest · net</th>
+                  <th>Advantage</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </main>
