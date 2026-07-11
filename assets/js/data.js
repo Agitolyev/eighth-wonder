@@ -19,7 +19,13 @@
  *                  'annual'    -> accrues once a year
  *  distributes   true  = pays cash you could pocket (dividends)
  *                false = value only accrues inside the certificate (no cash out)
- *  minInvestment smallest ticket, in UAH
+ *  minInvestment entry ticket — the smallest first investment, in UAH.
+ *                Also used as the whole-unit reinvestment step unless
+ *                unitSize overrides it (see below).
+ *  unitSize      price of a single fund unit / certificate, in UAH (optional).
+ *                Set this when the entry ticket is several units but you can
+ *                subsequently top up one unit at a time (e.g. Varto). When
+ *                omitted, the entry ticket is assumed to be one unit.
  *  termYears     fund lifetime in years (null = open-ended)
  *  accent        theme colour for the card
  *  highlights    short bullet facts
@@ -93,13 +99,14 @@ window.PROPOSITIONS = [
     payout: "quarterly",
     distributes: true,
     minInvestment: 125000,
+    unitSize: 1025,
     termYears: 11,
     accent: "#22c55e",
     highlights: [
       "~14.29% p.a. projected in EUR (incl. eventual asset sale)",
       "Guaranteed 5% p.a. floor + variable generation income",
       "Quarterly cash payouts from real electricity sales",
-      "Entry from ~₴125,000 (≈122 certificates)",
+      "Entry from ~₴125,000, then top up one ~₴1,025 certificate at a time",
     ],
     note:
       "Varto sells investment certificates that make you an indirect " +

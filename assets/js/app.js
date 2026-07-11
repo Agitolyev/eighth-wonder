@@ -458,9 +458,13 @@
     if (p.minInvestment && (parseFloat(els.principal.value) || 0) < p.minInvestment) {
       els.principal.value = p.minInvestment;
     }
-    // The unit / minimum-investment step drives whole-unit reinvestment.
-    if (p.minInvestment && p.minInvestment > 0) {
-      els.step.value = p.minInvestment;
+    // The unit size drives whole-unit reinvestment. Some funds have an entry
+    // ticket larger than one unit (Varto: ~₴125k entry, but you top up one
+    // ~₴1,025 certificate at a time), so prefer unitSize and fall back to the
+    // entry minimum when a fund's ticket is a single unit.
+    var unit = p.unitSize || p.minInvestment;
+    if (unit && unit > 0) {
+      els.step.value = unit;
       els.wholeUnits.checked = true;
     } else {
       els.step.value = 0;
