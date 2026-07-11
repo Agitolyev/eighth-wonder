@@ -111,13 +111,21 @@
 
         <p id="propNote" class="prop-note"></p>
 
+        <div class="plot-mode">
+          <span class="plot-mode-label">Add to comparison as</span>
+          <div class="mode-toggle" role="group" aria-label="Add to comparison as">
+            <button type="button" data-mode="reinvest" class="mode-btn is-active">Reinvest</button>
+            <button type="button" data-mode="withdraw" class="mode-btn">Withdraw</button>
+          </div>
+        </div>
         <button type="button" id="addCompare" class="btn-add">
           <span class="btn-add-icon" aria-hidden="true">+</span>
-          <span id="addCompareLabel">Add these assumptions to comparison</span>
+          <span id="addCompareLabel">Add Reinvest to comparison</span>
         </button>
         <p class="micro">
-          Tweak the rate, top-up or horizon and add again to compare the same
-          fund under different assumptions — or pick another fund.
+          Each entry plots one line — the mode you picked above. Tweak the rate,
+          top-up or horizon and add again to compare the same fund under
+          different assumptions, or plot Withdraw against Reinvest side by side.
         </p>
       </div>
 
@@ -210,10 +218,11 @@
           <ul id="compareList" class="compare-list" aria-label="Saved options"></ul>
 
           <figure class="chart">
-            <div id="compareChart" role="img" aria-label="Reinvested net worth compared across saved options"></div>
+            <div id="compareChart" role="img" aria-label="Net worth compared across saved options"></div>
             <figcaption class="micro compare-caption">
-              Each line is an option&rsquo;s <strong>reinvested (compound) net
-              worth</strong> over time, in the selected currency.
+              Each line is one option&rsquo;s net worth over time — the
+              <strong>Reinvest</strong> or <strong>Withdraw</strong> path you
+              chose when adding it — in the selected currency.
             </figcaption>
           </figure>
 
@@ -222,11 +231,10 @@
               <thead>
                 <tr>
                   <th>Option</th>
+                  <th>Mode</th>
                   <th>Rate</th>
                   <th>Horizon</th>
-                  <th>Withdraw · net</th>
-                  <th>Reinvest · net</th>
-                  <th>Advantage</th>
+                  <th>Net worth</th>
                 </tr>
               </thead>
               <tbody></tbody>

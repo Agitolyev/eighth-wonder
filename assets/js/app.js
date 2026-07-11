@@ -83,6 +83,7 @@
     tableBody: document.querySelector("#table tbody"),
     addCompare: $("addCompare"),
     addCompareLabel: $("addCompareLabel"),
+    modeBtns: document.querySelectorAll(".mode-btn"),
     clearCompare: $("clearCompare"),
     compareEmpty: $("compareEmpty"),
     compareBody: $("compareBody"),
@@ -496,6 +497,9 @@
   var comparisons = [];
   var compareSeq = 0;
   var COMPARE_MAX = 6;
+  // Which single trajectory the next "Add" captures: 'reinvest' or 'withdraw'.
+  var plotMode = "reinvest";
+  function modeLabel(mode) { return mode === "withdraw" ? "Withdraw" : "Reinvest"; }
   // Distinct, theme-safe line colours; assigned so removals don't recolour.
   var COMPARE_PALETTE = [
     "#0f9d63", "#2563eb", "#f59e0b", "#e11d48",
@@ -504,9 +508,11 @@
   var compareHover = null;
 
   // A stable fingerprint of a setup, so the same option isn't added twice.
+  // The plot mode is part of the identity: Withdraw and Reinvest of the same
+  // setup are two distinct lines you may want side by side.
   function signatureOf(entry) {
     return [
-      entry.propId, entry.rate, entry.frequency, entry.years,
+      entry.propId, entry.mode, entry.rate, entry.frequency, entry.years,
       entry.wholeUnits ? 1 : 0, entry.distributes ? 1 : 0,
       Math.round(entry.baseUAH.principal), Math.round(entry.baseUAH.contribution),
       Math.round(entry.baseUAH.step),
@@ -519,6 +525,7 @@
     return {
       propId: state.propId,
       name: p.name || "Custom",
+      mode: plotMode,
       rate: Math.max(0, parseFloat(els.rate.value) || 0),
       frequency: parseInt(els.frequency.value, 10) || 12,
       years: parseInt(els.years.value, 10) || 1,
@@ -557,7 +564,7 @@
       ? "Added to comparison"
       : full
         ? "Comparison full (" + COMPARE_MAX + " max)"
-        : "Add these assumptions to comparison";
+        : "Add " + modeLabel(plotMode) + " to comparison";
   }
 
   function addComparison() {
@@ -568,6 +575,7 @@
     entry.id = "cmp" + (++compareSeq);
     entry.color = pickColor();
     entry.label = entry.name + " · " + entry.rate + "%";
+    entry.modeText = modeLabel(entry.mode);
     comparisons.push(entry);
     renderComparisons();
     refreshAddButton();
@@ -609,19 +617,22 @@
       // Describe the assumptions that make this entry distinct from another
       // run of the same fund: starting amount, top-up and payout cadence.
       var money = fmt(principal) + (monthly > 0 ? " +" + fmt(monthly) + "/mo" : "");
+      var withdraw = c.mode === "withdraw";
+      // One line per entry: the chosen trajectory only.
+      var seriesKey = withdraw ? "simpleNet" : "compound";
+      var net = withdraw ? r.simpleNet : r.compound;
       return {
         id: c.id,
         color: c.color,
         name: c.name,
         label: c.label,
+        modeText: c.modeText,
         rate: c.rate,
         years: c.years,
         moneyFreq: money + " · " + freqLabel(c.frequency),
         chipDetail: money + " · " + c.years + "y · " + freqLabel(c.frequency),
-        rows: r.rows.map(function (d) { return { year: d.year, value: d.compound }; }),
-        withdraw: r.simpleNet,
-        reinvest: r.compound,
-        advantage: r.compound - r.simpleNet,
+        rows: r.rows.map(function (d) { return { year: d.year, value: d[seriesKey] }; }),
+        net: net,
       };
     });
   }
@@ -637,27 +648,29 @@
 
     // Chips (also the chart legend) + summary table.
     els.compareList.innerHTML = data.map(function (d) {
+      var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
       return '<li class="compare-chip">' +
         '<span class="compare-swatch" style="background:' + d.color + '"></span>' +
         '<span class="chip-text">' +
-          '<span class="name">' + escapeHtml(d.label) + "</span>" +
+          '<span class="name">' + escapeHtml(d.label) +
+            ' <span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></span>" +
           '<span class="detail">' + escapeHtml(d.chipDetail) + "</span>" +
         "</span>" +
-        '<span class="val">' + fmt(d.reinvest) + "</span>" +
+        '<span class="val">' + fmt(d.net) + "</span>" +
         '<button type="button" class="compare-remove" data-id="' + d.id +
-        '" aria-label="Remove ' + escapeHtml(d.label) + '">&times;</button>' +
+        '" aria-label="Remove ' + escapeHtml(d.label) + " (" + escapeHtml(d.modeText) + ')">&times;</button>' +
         "</li>";
     }).join("");
 
     els.compareTableBody.innerHTML = data.map(function (d) {
+      var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
       return "<tr>" +
         '<td><span class="opt-name">' + escapeHtml(d.name) + "</span>" +
           '<span class="opt-detail">' + escapeHtml(d.moneyFreq) + "</span></td>" +
+        '<td><span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></td>" +
         "<td>" + d.rate + "%</td>" +
         "<td>" + d.years + (d.years === 1 ? " yr" : " yrs") + "</td>" +
-        "<td>" + fmt(d.withdraw) + "</td>" +
-        "<td>" + fmt(d.reinvest) + "</td>" +
-        '<td class="pos">' + fmtSigned(d.advantage) + "</td>" +
+        "<td>" + fmt(d.net) + "</td>" +
         "</tr>";
     }).join("");
 
@@ -725,16 +738,17 @@
     compareHover = { series: series, x: x, y: y, m: m, iw: iw, ih: ih, W: W, H: H, maxX: maxX };
   }
 
-  var CTIP_W = 210;
+  var CTIP_W = 244;
   function comparisonHoverLayer(series) {
     var head = 24, rowH = 20, pad = 10;
     var TIP_H = head + series.length * rowH + pad;
     var rows = series.map(function (s, i) {
       var ry = head + i * rowH + 8;
+      var tl = s.label + " · " + s.modeText;
       return '<g id="ctipRow' + i + '">' +
         '<circle cx="15" cy="' + ry + '" r="4" fill="' + s.color + '" />' +
         '<text x="26" y="' + (ry + 4) + '" fill="rgba(255,255,255,0.62)" font-size="11">' +
-          escapeHtml(s.label.length > 22 ? s.label.slice(0, 21) + "…" : s.label) + "</text>" +
+          escapeHtml(tl.length > 26 ? tl.slice(0, 25) + "…" : tl) + "</text>" +
         '<text id="ctipVal' + i + '" x="' + (CTIP_W - 12) + '" y="' + (ry + 4) +
           '" text-anchor="end" fill="#ffffff" font-size="11" font-weight="600"></text>' +
       "</g>";
@@ -942,6 +956,17 @@
     els.chart.addEventListener("pointerleave", hideChartHover);
 
     // Comparison: add / remove / clear + its own chart hover.
+    els.modeBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var mode = b.getAttribute("data-mode");
+        if (!mode || mode === plotMode) return;
+        plotMode = mode;
+        els.modeBtns.forEach(function (x) {
+          x.classList.toggle("is-active", x === b);
+        });
+        refreshAddButton();
+      });
+    });
     els.addCompare.addEventListener("click", addComparison);
     els.clearCompare.addEventListener("click", clearComparisons);
     els.compareList.addEventListener("click", function (e) {
