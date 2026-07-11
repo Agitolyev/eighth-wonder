@@ -32,8 +32,14 @@
  *  note          honesty / risk caveat
  *  dataAsOf      date these figures were last verified (YYYY-MM-DD).
  *                UPDATE THIS whenever you refresh a fund's numbers.
- *  source        where the figures came from
+ *  source        where the figures came from (short text)
+ *  sourceUrl     link to the page the figures were taken from — shown as a
+ *                clickable "Source" in the UI, so every number is traceable.
  *  url           official offer page
+ *
+ * Objective, verifiable fields (currently the certificate/unit price) can be
+ * refreshed automatically from the official pages — see assets/data/funds.csv
+ * and scripts/update-funds.mjs. Projected figures like `rate` stay curated here.
  */
 /**
  * Currency display options.
@@ -77,6 +83,7 @@ window.PROPOSITIONS = [
       "property market — returns are not guaranteed.",
     dataAsOf: "2026-07-10",
     source: "inzhur.reit offer page + public reporting (Minfin, Kapitalistka)",
+    sourceUrl: "https://www.inzhur.reit/offer/inzhur-reit",
     url: "https://www.inzhur.reit/offer/inzhur-reit",
   },
   {
@@ -104,6 +111,7 @@ window.PROPOSITIONS = [
       "rate would earn without that yearly compounding, for comparison.",
     dataAsOf: "2026-07-10",
     source: "inzhur.reit offer page + public reporting (Forbes.ua, dev.ua, Minfin)",
+    sourceUrl: "https://www.inzhur.reit/offer/inzhur-energy",
     url: "https://www.inzhur.reit/offer/inzhur-energy",
   },
   {
@@ -135,6 +143,7 @@ window.PROPOSITIONS = [
       "projected returns are not guaranteed.",
     dataAsOf: "2026-07-11",
     source: "varto.investments offer page + public reporting (NV, dev.ua, Epravda)",
+    sourceUrl: "https://varto.investments/about-fund",
     url: "https://varto.investments/about-fund",
   },
   {

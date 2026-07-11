@@ -1,0 +1,51 @@
+name: Update fund data
+
+# Refreshes objective per-fund figures (certificate/unit price) daily from the
+# funds' official offer pages and commits any change. scripts/update-funds.mjs
+# rewrites assets/data/funds.csv (source of truth) and regenerates
+# assets/js/funds-live.js (what the page loads). Projected returns are NOT
+# touched — they stay curated in assets/js/data.js.
+#
+# The official sites are bot-protected and may block CI; when a fetch fails the
+# script keeps the last-known price and leaves its date stale, so nothing is
+# ever fabricated. The Deploy to GitHub Pages workflow republishes on its own
+# daily schedule (a GITHUB_TOKEN commit can't trigger it directly).
+on:
+  # 06:30 UTC daily — just after the FX job, before the 07:00 Pages redeploy.
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-funds
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch latest fund figures
+        run: node scripts/update-funds.mjs
+
+      - name: Commit updated fund data
+        run: |
+          if [[ -z "$(git status --porcelain assets/data/funds.csv assets/js/funds-live.js)" ]]; then
+            echo "Fund data unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/funds.csv assets/js/funds-live.js
+          git commit -m "chore: update fund data ($(date -u +%Y-%m-%d))"
+          git push

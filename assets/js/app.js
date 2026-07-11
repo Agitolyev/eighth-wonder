@@ -8,6 +8,9 @@
   var PROPS = window.PROPOSITIONS || [];
   var CURRENCIES = window.CURRENCIES || [{ code: "USD", symbol: "$" }, { code: "UAH", symbol: "₴" }];
   var FX = window.FX || { uahPer: { USD: 1, UAH: 1 } };
+  // Objective per-fund figures (certificate/unit price) refreshed daily from
+  // the official pages by scripts/update-funds.mjs; keyed by proposition id.
+  var FUND_LIVE = window.FUND_LIVE || {};
 
   // ---- State ----
   // Money amounts are the source of truth in UAH (`baseUAH`); the input fields
@@ -94,6 +97,13 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  // Render `text` as a link to `url` (new tab), or plain escaped text if no url.
+  function link(url, text) {
+    if (!url) return escapeHtml(text);
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' +
+      escapeHtml(text) + "</a>";
   }
 
   /* -----------------------------------------------------------------------
@@ -520,8 +530,10 @@
     // The unit size drives whole-unit reinvestment. Some funds have an entry
     // ticket larger than one unit (Varto: ~₴125k entry, but you top up one
     // ~₴1,025 certificate at a time), so prefer unitSize and fall back to the
-    // entry minimum when a fund's ticket is a single unit.
-    var unit = p.unitSize || p.minInvestment;
+    // entry minimum when a fund's ticket is a single unit. A daily-refreshed
+    // live certificate price (FUND_LIVE) overrides the curated unit size.
+    var live = FUND_LIVE[p.id];
+    var unit = (live && live.unitPriceUAH) || p.unitSize || p.minInvestment;
     if (unit && unit > 0) {
       state.baseUAH.step = unit;
       els.wholeUnits.checked = true;
@@ -531,11 +543,20 @@
     }
     refreshMoneyFields();
     syncStepState();
+
     var meta = p.dataAsOf
-      ? '<span class="asof-badge" title="' + (p.source || "") + '">Data as of ' + p.dataAsOf + "</span> "
+      ? '<span class="asof-badge" title="' + escapeHtml(p.source || "") + '">Data as of ' + escapeHtml(p.dataAsOf) + "</span> "
       : "";
-    els.propNote.innerHTML = meta + escapeHtml(p.note) +
-      (p.source ? '<span class="prop-source">Source: ' + escapeHtml(p.source) + "</span>" : "");
+    var sourceLine = p.source
+      ? '<span class="prop-source">Source: ' + link(p.sourceUrl, p.source) + "</span>"
+      : "";
+    // Provenance for the auto-tracked certificate price (with its own date/link).
+    var priceLine = live && live.unitPriceUAH
+      ? '<span class="prop-source">Certificate price ₴' + escapeHtml(live.unitPriceUAH) +
+        " — " + link(live.sourceUrl, "official page") +
+        (live.asOf ? ", " + escapeHtml(live.asOf) : "") + "</span>"
+      : "";
+    els.propNote.innerHTML = meta + escapeHtml(p.note) + sourceLine + priceLine;
 
     // reflect active state on cards
     var cards = els.cards.querySelectorAll(".card");

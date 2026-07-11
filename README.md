@@ -96,6 +96,9 @@ assets/js/app.js          simulation + rendering
 assets/js/fx-rates.js     conversion rates the page loads (auto-generated)
 assets/data/fx-rates.csv  conversion rates, source of truth (updated daily)
 scripts/update-fx.mjs     fetches NBU rates → rewrites the CSV + regenerates the JS
+assets/js/funds-live.js   live per-fund figures the page loads (auto-generated)
+assets/data/funds.csv     per-fund certificate prices, source of truth (updated daily)
+scripts/update-funds.mjs  fetches official pages → rewrites the CSV + regenerates the JS
 ```
 
 Adding a new company is a one-object edit in `assets/js/data.js`.
@@ -137,3 +140,27 @@ node scripts/update-fx.mjs --regen   # just regenerate the JS from the CSV (no n
 **Adding a currency:** add it to `window.CURRENCIES` in `assets/js/data.js`
 (code + symbol) and to the `DISPLAY` list in `scripts/update-fx.mjs` (its NBU
 3-letter code), then run the script. UAH is the base and is always `1`.
+
+### Per-fund figures
+
+The one *objective, verifiable* per-fund number — the **certificate / unit
+price** — is refreshed the same way. Its source of truth is
+`assets/data/funds.csv` (`id,unit_price_uah,as_of,source_url`), loaded via the
+generated `assets/js/funds-live.js`; the app uses it as the whole-unit
+reinvestment size and shows it with a **clickable link to the official page it
+came from**. Projected returns (`rate`) are *not* fetched — they're marketing
+projections and stay curated in `data.js` with their own `dataAsOf` / `source`
+(also now a link, via `sourceUrl`).
+
+A daily Action ([`.github/workflows/update-funds.yml`](.github/workflows/update-funds.yml),
+06:30 UTC) runs `scripts/update-funds.mjs`, which reads each fund's official
+page and parses the price. The offer sites are **bot-protected and may block
+CI** — when a fetch or parse fails, the script keeps the last-known price and
+**leaves its `as_of` date stale** (never fabricating a value), so the UI shows
+the real age. Each fund has an adapter in the `ADAPTERS` map; point a new fund
+at its official page with a row in the CSV plus an adapter entry.
+
+```bash
+node scripts/update-funds.mjs           # fetch official pages, rewrite CSV + JS
+node scripts/update-funds.mjs --regen   # regenerate the JS from the CSV (no network)
+```

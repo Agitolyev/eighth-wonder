@@ -1,0 +1,170 @@
+#!/usr/bin/env node
+/**
+ * Refresh objective, verifiable per-fund data from the official offer pages.
+ *
+ * ONLY the certificate/unit price is tracked automatically — it's a concrete,
+ * checkable number. Projected returns (`rate`) are marketing/illustrative and
+ * stay human-curated in assets/js/data.js; this script never touches them.
+ *
+ * Same shape as the FX job: assets/data/funds.csv is the source of truth and
+ * the page loads a generated assets/js/funds-live.js (so nothing is fetched at
+ * runtime and the app still works offline / straight from disk). Every value
+ * carries the source_url it came from, surfaced as a clickable "Source" link.
+ *
+ * Safe by construction: if a fund's page can't be fetched or parsed (the
+ * official sites are bot-protected and may block CI), we KEEP the last-known
+ * price and DO NOT advance its as_of — so staleness stays visible in the UI
+ * and a figure is never fabricated.
+ *
+ *   node scripts/update-funds.mjs          fetch official pages, rewrite CSV + JS
+ *   node scripts/update-funds.mjs --regen  regenerate JS from the CSV (no network)
+ *
+ * Pure Node built-ins, no dependencies.
+ */
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const CSV = path.join(ROOT, "assets", "data", "funds.csv");
+const JS = path.join(ROOT, "assets", "js", "funds-live.js");
+
+const UA =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+  "Chrome/124.0 Safari/537.36";
+
+// ---- Per-fund adapters (official pages only) -----------------------------
+// Each adapter gets the fetched HTML and returns the unit price in UAH, or
+// null if it can't confidently find one (→ keep last-known, don't bump as_of).
+
+// Grab the number following a ₴/грн marker, e.g. "₴10,5" / "10.50 грн".
+function parseUahPrice(html, opts) {
+  opts = opts || {};
+  const patterns = [
+    /(?:₴|грн\.?\s*)\s*([\d\s.,]+)/i,
+    /([\d\s.,]+)\s*(?:₴|грн)/i,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(html || "");
+    if (!m) continue;
+    // Ukrainian pages use comma decimals and spaces as thousands separators.
+    const raw = m[1].replace(/\s/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
+    const n = parseFloat(raw);
+    if (isFinite(n) && n > 0 && (!opts.max || n <= opts.max) && (!opts.min || n >= opts.min)) {
+      return n;
+    }
+  }
+  return null;
+}
+
+const ADAPTERS = {
+  // Small REIT certificate — a few ₴ each.
+  "inzhur-reit": (html) => parseUahPrice(html, { min: 1, max: 1000 }),
+  // Energy certificate — thousands of ₴.
+  "inzhur-energy": (html) => parseUahPrice(html, { min: 100, max: 100000 }),
+  // Varto wind certificate — ~₴1,000.
+  "varto-wind": (html) => parseUahPrice(html, { min: 100, max: 100000 }),
+};
+
+// ---- CSV / JS I/O ---------------------------------------------------------
+function csvCell(v) {
+  const s = String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function toCsv(rows) {
+  const head = "id,unit_price_uah,as_of,source_url";
+  const body = rows.map((r) =>
+    [r.id, r.unit_price_uah, r.as_of, r.source_url].map(csvCell).join(",")
+  );
+  return head + "\n" + body.join("\n") + "\n";
+}
+
+function parseCsv(text) {
+  const lines = text.replace(/\r\n/g, "\n").trim().split("\n");
+  const header = lines.shift().split(",").map((h) => h.trim());
+  return lines.filter(Boolean).map((line) => {
+    const cells = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQ) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') inQ = false;
+        else cur += c;
+      } else if (c === '"') inQ = true;
+      else if (c === ",") { cells.push(cur); cur = ""; }
+      else cur += c;
+    }
+    cells.push(cur);
+    const o = {};
+    header.forEach((h, i) => (o[h] = (cells[i] ?? "").trim()));
+    return o;
+  });
+}
+
+function toJs(rows) {
+  const entries = rows.map(
+    (r) =>
+      `  ${JSON.stringify(r.id)}: { unitPriceUAH: ${Number(r.unit_price_uah)}, ` +
+      `asOf: ${JSON.stringify(r.as_of)}, sourceUrl: ${JSON.stringify(r.source_url)} }`
+  );
+  return (
+    "/* AUTO-GENERATED from assets/data/funds.csv by scripts/update-funds.mjs.\n" +
+    " * Do not edit by hand — the daily \"Update fund data\" workflow overwrites it.\n" +
+    " * Objective per-fund figures (certificate/unit price) fetched from the\n" +
+    " * official pages; projected returns stay curated in data.js. */\n" +
+    "window.FUND_LIVE = {\n" +
+    entries.join(",\n") +
+    "\n};\n"
+  );
+}
+
+async function fetchPrice(url) {
+  const res = await fetch(url, {
+    headers: { "user-agent": UA, accept: "text/html" },
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
+async function main() {
+  const regen = process.argv.includes("--regen");
+  const rows = parseCsv(await readFile(CSV, "utf8"));
+
+  if (!regen) {
+    const today = new Date().toISOString().slice(0, 10);
+    for (const row of rows) {
+      const adapter = ADAPTERS[row.id];
+      if (!adapter || !row.source_url) {
+        console.log(`- ${row.id}: no adapter/source, keeping ${row.unit_price_uah}`);
+        continue;
+      }
+      try {
+        const price = adapter(await fetchPrice(row.source_url));
+        if (price == null) throw new Error("no price parsed");
+        row.unit_price_uah = price;
+        row.as_of = today; // only advance the date on a real, parsed value
+        console.log(`✓ ${row.id}: ${price} (as of ${today})`);
+      } catch (err) {
+        // Keep last-known; leave as_of stale so the UI shows the real age.
+        console.log(`! ${row.id}: fetch/parse failed (${err.message}), keeping ${row.unit_price_uah} from ${row.as_of}`);
+      }
+    }
+    await mkdir(path.dirname(CSV), { recursive: true });
+    await writeFile(CSV, toCsv(rows));
+  }
+
+  await writeFile(JS, toJs(rows));
+  console.log(`funds ${regen ? "regenerated" : "updated"}: ${rows.length} rows`);
+}
+
+export { parseUahPrice, parseCsv, toCsv, toJs, ADAPTERS };
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main().catch((err) => {
+    console.error("update-funds failed:", err.message);
+    process.exit(1);
+  });
+}
