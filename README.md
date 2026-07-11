@@ -153,20 +153,21 @@ projections and stay curated in `data.js` with their own `dataAsOf` / `source`
 (also now a link, via `sourceUrl`).
 
 A daily Action ([`.github/workflows/update-funds.yml`](.github/workflows/update-funds.yml),
-06:30 UTC) runs `scripts/update-funds.mjs`, which reads each fund's official
-page and parses the price. Each value carries an `as_of` date, surfaced in the
-UI as **"updated ‹date›"** so users always know how fresh it is. Each fund has
-an adapter in the `ADAPTERS` map; point a new fund at its official page with a
-row in the CSV plus an adapter entry.
+06:30 UTC) refreshes the prices **one job per fund** — the matrix is read
+straight from `funds.csv`, so adding a CSV row (plus an adapter) adds a job with
+no workflow edit. Running per fund means a blocked source only fails **its own**
+job, and the Actions UI shows exactly which fund's price is going stale. Each
+value carries an `as_of` date, surfaced in the UI as **"updated ‹date›"** so
+users always know how fresh it is.
 
 **On failure:** the offer sites are bot-protected and may block CI. When a
-fetch or parse fails, the script (1) **falls back to the last-known price** and
-leaves its `as_of` stale — never fabricating a value or advancing the date —
-and (2) **exits non-zero so the workflow run is marked failed**, a visible
-signal that the data is going stale. Funds that *did* refresh are still
-committed (the commit step runs `if: always()`); the run's status stays failed.
-Because these sites routinely block automated requests, expect this job to fail
-often — that's the honest signal, not a bug.
+fund's fetch or parse fails, `scripts/update-funds.mjs --fund <id>` (1) **falls
+back to the last-known price** and leaves its `as_of` stale — never fabricating
+a value or advancing the date — and (2) **exits non-zero so that fund's job is
+marked failed**, a visible per-fund signal that its data is going stale. Funds
+that *did* refresh still commit (`if: always()`); each job's status is
+independent. Because these sites routinely block automated requests, expect
+some of these jobs to fail often — that's the honest signal, not a bug.
 
 ```bash
 node scripts/update-funds.mjs           # fetch official pages, rewrite CSV + JS

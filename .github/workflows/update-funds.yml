@@ -1,15 +1,14 @@
 name: Update fund data
 
 # Refreshes objective per-fund figures (certificate/unit price) daily from the
-# funds' official offer pages and commits any change. scripts/update-funds.mjs
-# rewrites assets/data/funds.csv (source of truth) and regenerates
-# assets/js/funds-live.js (what the page loads). Projected returns are NOT
-# touched — they stay curated in assets/js/data.js.
+# funds' official offer pages, ONE JOB PER FUND. Running per fund means a
+# blocked/failed source only marks its own job failed (not the others), and the
+# Actions UI shows exactly which fund's price is going stale.
 #
-# The official sites are bot-protected and may block CI; when a fetch fails the
-# script keeps the last-known price and leaves its date stale, so nothing is
-# ever fabricated. The Deploy to GitHub Pages workflow republishes on its own
-# daily schedule (a GITHUB_TOKEN commit can't trigger it directly).
+# scripts/update-funds.mjs --fund <id> updates that fund's row in
+# assets/data/funds.csv (source of truth) and regenerates assets/js/funds-live.js
+# (what the page loads). Projected returns are NOT touched — they stay curated
+# in assets/js/data.js. Deploy to GitHub Pages republishes on its own schedule.
 on:
   # 06:30 UTC daily — just after the FX job, before the 07:00 Pages redeploy.
   schedule:
@@ -19,13 +18,37 @@ on:
 permissions:
   contents: write
 
+# Serialize all runs of this workflow so per-fund commits never race on push.
 concurrency:
   group: update-funds
   cancel-in-progress: false
 
 jobs:
-  update:
+  # Read the fund ids straight from the CSV so the matrix stays in sync with the
+  # data (no hard-coded fund list in this file).
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      funds: ${{ steps.list.outputs.funds }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          funds=$(node -e "const fs=require('fs');const ids=fs.readFileSync('assets/data/funds.csv','utf8').trim().split('\n').slice(1).map(l=>l.split(',')[0]).filter(Boolean);process.stdout.write(JSON.stringify(ids))")
+          echo "funds=$funds" >> "$GITHUB_OUTPUT"
+          echo "Funds: $funds"
+
+  update:
+    needs: discover
+    runs-on: ubuntu-latest
+    # One job per fund. Independent statuses; a failing source doesn't fail the
+    # others. max-parallel: 1 keeps the per-fund commits from racing on push.
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        fund: ${{ fromJson(needs.discover.outputs.funds) }}
+    name: ${{ matrix.fund }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,22 +58,23 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Fetch latest fund figures
-        # Exits non-zero if any fund fails to refresh (the job is then marked
-        # failed), but still writes the CSV/JS with the fallback values first.
-        run: node scripts/update-funds.mjs
+      - name: Fetch ${{ matrix.fund }}
+        # Exits non-zero if this fund can't be refreshed (its job is then marked
+        # failed), but writes the fallback (last-known) value to the files first.
+        run: node scripts/update-funds.mjs --fund ${{ matrix.fund }}
 
-      - name: Commit updated fund data
-        # Run even when the fetch step failed, so any funds that DID refresh are
-        # still committed. The job's overall status stays failed.
+      - name: Commit ${{ matrix.fund }}
+        # Runs even if the fetch failed; commits only when this fund's value
+        # actually changed. This fund's job status stays failed on failure.
         if: always()
         run: |
           if [[ -z "$(git status --porcelain assets/data/funds.csv assets/js/funds-live.js)" ]]; then
-            echo "Fund data unchanged — nothing to commit."
+            echo "No change for ${{ matrix.fund }}."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git add assets/data/funds.csv assets/js/funds-live.js
-          git commit -m "chore: update fund data ($(date -u +%Y-%m-%d))"
+          git commit -m "chore: update ${{ matrix.fund }} price ($(date -u +%Y-%m-%d))"
           git push

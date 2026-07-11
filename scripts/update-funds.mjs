@@ -16,8 +16,12 @@
  * price and DO NOT advance its as_of — so staleness stays visible in the UI
  * and a figure is never fabricated.
  *
- *   node scripts/update-funds.mjs          fetch official pages, rewrite CSV + JS
- *   node scripts/update-funds.mjs --regen  regenerate JS from the CSV (no network)
+ *   node scripts/update-funds.mjs             fetch all funds, rewrite CSV + JS
+ *   node scripts/update-funds.mjs --fund ID   fetch just one fund (others untouched)
+ *   node scripts/update-funds.mjs --regen     regenerate JS from the CSV (no network)
+ *
+ * The CI workflow runs one job per fund (--fund), so a blocked source only
+ * fails its own job and you can see per-fund which price is going stale.
  *
  * Pure Node built-ins, no dependencies.
  */
@@ -131,12 +135,19 @@ async function fetchPrice(url) {
 
 async function main() {
   const regen = process.argv.includes("--regen");
+  const onlyIdx = process.argv.indexOf("--fund");
+  const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null; // update just this fund
   const rows = parseCsv(await readFile(CSV, "utf8"));
   const failed = [];
+
+  if (only && !rows.some((r) => r.id === only)) {
+    throw new Error(`unknown fund '${only}' (not in funds.csv)`);
+  }
 
   if (!regen) {
     const today = new Date().toISOString().slice(0, 10);
     for (const row of rows) {
+      if (only && row.id !== only) continue; // leave other funds' rows untouched
       const adapter = ADAPTERS[row.id];
       if (!adapter || !row.source_url) {
         console.log(`- ${row.id}: no adapter/source, keeping ₴${row.unit_price_uah} (updated ${row.as_of})`);
@@ -160,7 +171,8 @@ async function main() {
   }
 
   await writeFile(JS, toJs(rows));
-  console.log(`funds ${regen ? "regenerated" : "updated"}: ${rows.length} rows, ${failed.length} failed`);
+  const scope = regen ? "regenerated from CSV" : only ? `updated ${only}` : `updated ${rows.length} funds`;
+  console.log(`funds ${scope}; ${failed.length} failed`);
 
   // Mark the job as failed if any fund could not be refreshed. Previous values
   // are already written above, so the site keeps serving the last-known data.
