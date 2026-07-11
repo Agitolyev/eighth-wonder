@@ -36,32 +36,21 @@
  *  url           official offer page
  */
 /**
- * Currency display options and a static FX snapshot.
+ * Currency display options.
  *
  * The calculator's engine is unit-agnostic (it works in pure ratios), so
- * currency only affects *display*. Amounts are held internally in UAH and
- * converted to the selected display currency using the rates below.
+ * currency only affects *display*: amounts are held internally in UAH and
+ * converted to the selected currency. Adding a currency here also means adding
+ * its NBU code to scripts/update-fx.mjs so the daily job fetches its rate.
  *
- * These rates are a HARDCODED SNAPSHOT — nothing is fetched at runtime, so the
- * app still runs fully offline with no data leaving the page. They therefore go
- * stale: refresh `uahPer` and bump `asOf` when you update them. `uahPer[code]`
- * is "how many UAH one unit of that currency is worth".
+ * The conversion rates themselves live in `window.FX` (assets/js/fx-rates.js),
+ * which is auto-generated from assets/data/fx-rates.csv — see that script.
  */
 window.CURRENCIES = [
   { code: "USD", symbol: "$" },
   { code: "UAH", symbol: "₴" },
   { code: "EUR", symbol: "€" },
 ];
-
-window.FX = {
-  asOf: "2026-07-09",
-  source: "National Bank of Ukraine official rates",
-  uahPer: {
-    UAH: 1,
-    USD: 44.47,
-    EUR: 50.69,
-  },
-};
 
 window.PROPOSITIONS = [
   {

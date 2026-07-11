@@ -15,6 +15,12 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Republish daily so the site picks up the fresh conversion rates committed
+  # by the "Update FX rates" workflow (which runs at 06:20 UTC). A push made by
+  # that job's built-in GITHUB_TOKEN can't trigger this workflow, so we rerun
+  # it on a schedule instead.
+  schedule:
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 permissions:

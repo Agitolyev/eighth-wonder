@@ -89,10 +89,13 @@ A `.nojekyll` file is included so the `assets/` folder is served untouched.
 ## Project layout
 
 ```
-index.html              markup
-assets/css/styles.css   styling
-assets/js/data.js       company propositions (add your own here)
-assets/js/app.js         simulation + rendering
+index.html                markup
+assets/css/styles.css     styling
+assets/js/data.js         company propositions (add your own here) + currencies
+assets/js/app.js          simulation + rendering
+assets/js/fx-rates.js     conversion rates the page loads (auto-generated)
+assets/data/fx-rates.csv  conversion rates, source of truth (updated daily)
+scripts/update-fx.mjs     fetches NBU rates → rewrites the CSV + regenerates the JS
 ```
 
 Adding a new company is a one-object edit in `assets/js/data.js`.
@@ -107,8 +110,30 @@ other figure — bump its `dataAsOf` to the date you checked** and, if needed,
 update `source`. The `custom` proposition has no date because the numbers are
 your own.
 
-The **currency conversion rates** live in the same file, in `window.FX`
-(`assets/js/data.js`). They're a static snapshot — `uahPer` maps each currency
-to its value in UAH — surfaced in the UI as an "FX as of …" note. When you
-refresh them, update `uahPer` and bump `asOf` (and `source` if needed). Adding
-a currency is a one-line edit to `window.CURRENCIES` plus its `uahPer` entry.
+### Currency conversion rates
+
+The **conversion rates** are refreshed automatically. Their source of truth is
+`assets/data/fx-rates.csv` (`currency,uah_per,as_of,source`), and the page
+loads them from `assets/js/fx-rates.js`, which is **generated** from the CSV —
+so the app never fetches at runtime and keeps working offline / straight from
+disk. A rate is always shown with an "FX as of …" note, so a stale figure is
+never presented as live.
+
+A GitHub Action ([`.github/workflows/update-fx.yml`](.github/workflows/update-fx.yml))
+runs daily at 06:20 UTC, pulls the latest [National Bank of Ukraine](https://bank.gov.ua)
+rates via `scripts/update-fx.mjs`, and commits the updated CSV + JS if anything
+changed. The Pages deploy then runs on its own daily schedule (07:00 UTC) to
+republish the site with the fresh rates — a commit made by the update job's
+built-in token can't trigger the deploy workflow directly, so the two are
+scheduled back to back instead.
+
+To refresh or fix the rates by hand:
+
+```bash
+node scripts/update-fx.mjs           # fetch the latest NBU rates, rewrite CSV + JS
+node scripts/update-fx.mjs --regen   # just regenerate the JS from the CSV (no network)
+```
+
+**Adding a currency:** add it to `window.CURRENCIES` in `assets/js/data.js`
+(code + symbol) and to the `DISPLAY` list in `scripts/update-fx.mjs` (its NBU
+3-letter code), then run the script. UAH is the base and is always `1`.

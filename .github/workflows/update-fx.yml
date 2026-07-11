@@ -1,0 +1,48 @@
+name: Update FX rates
+
+# Refreshes the currency-conversion snapshot daily from the National Bank of
+# Ukraine and commits the change. scripts/update-fx.mjs rewrites
+# assets/data/fx-rates.csv (source of truth) and regenerates
+# assets/js/fx-rates.js (what the page loads). A push to `main` here triggers
+# the Deploy to GitHub Pages workflow, so the live site picks up new rates.
+on:
+  schedule:
+    # 06:20 UTC daily — NBU publishes the day's official rates in the morning.
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+
+# Needed so the job can push the updated rate files back to the repo.
+permissions:
+  contents: write
+
+# Don't overlap with another run mid-push.
+concurrency:
+  group: update-fx
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch latest NBU rates
+        run: node scripts/update-fx.mjs
+
+      - name: Commit updated rates
+        run: |
+          if [[ -z "$(git status --porcelain assets/data/fx-rates.csv assets/js/fx-rates.js)" ]]; then
+            echo "FX rates unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/fx-rates.csv assets/js/fx-rates.js
+          git commit -m "chore: update FX rates ($(date -u +%Y-%m-%d))"
+          git push
