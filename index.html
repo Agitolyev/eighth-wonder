@@ -6,11 +6,24 @@
   <title>The Eighth Wonder — Simple vs Compound Interest Calculator</title>
   <meta name="description" content="Compare simple interest (withdraw your returns) against compound interest (reinvest) side by side for REITs, renewable-energy funds and custom investments." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <script>
+    // Resolve the theme before first paint to avoid a flash of the wrong mode.
+    (function () {
+      try {
+        var stored = localStorage.getItem("theme");
+        var dark = stored
+          ? stored === "dark"
+          : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
   <header class="hero">
     <div class="wrap">
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false"></button>
       <p class="eyebrow">The Eighth Wonder</p>
       <h1>Simple vs Compound Interest</h1>
       <p class="lede">
@@ -180,6 +193,40 @@
       <p class="muted">Open source · runs entirely in your browser · no data leaves this page.</p>
     </div>
   </footer>
+
+  <script>
+    // Dark-mode toggle: flip data-theme, persist the choice, keep following the
+    // OS preference until the user makes an explicit pick.
+    (function () {
+      var btn = document.getElementById("themeToggle");
+      if (!btn) return;
+      var root = document.documentElement;
+      function isDark() { return root.getAttribute("data-theme") === "dark"; }
+      function render() {
+        var dark = isDark();
+        btn.textContent = dark ? "☀️" : "🌙";
+        btn.setAttribute("aria-pressed", dark ? "true" : "false");
+        btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      }
+      btn.addEventListener("click", function () {
+        var next = isDark() ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("theme", next); } catch (e) {}
+        render();
+      });
+      if (window.matchMedia) {
+        var mq = window.matchMedia("(prefers-color-scheme: dark)");
+        var onChange = function (e) {
+          try { if (localStorage.getItem("theme")) return; } catch (err) {}
+          root.setAttribute("data-theme", e.matches ? "dark" : "light");
+          render();
+        };
+        if (mq.addEventListener) mq.addEventListener("change", onChange);
+        else if (mq.addListener) mq.addListener(onChange);
+      }
+      render();
+    })();
+  </script>
 
   <script src="assets/js/data.js"></script>
   <script src="assets/js/fx-rates.js"></script>
