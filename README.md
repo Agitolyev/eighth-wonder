@@ -37,7 +37,11 @@ refresh them (see below).
   fraction-friendly reinvestment.
 - Interactive growth chart + a year-by-year breakdown table.
 - Optional recurring monthly top-up.
-- Toggle between **$ USD** and **₴ UAH** display.
+- Toggle the display currency between **$ USD**, **₴ UAH** and **€ EUR**.
+  Amounts are held internally in UAH and converted with a **static FX
+  snapshot** (National Bank of Ukraine rates, stamped with an "FX as of …"
+  note) — nothing is fetched at runtime, so the app stays offline-friendly.
+  The `%` rate is currency-independent and is never converted.
 - Runs entirely in your browser — no build step, no dependencies, no data leaves the page.
 
 ## Run locally
@@ -102,3 +106,9 @@ stale rate as if it were live. **When you refresh a fund's `rate` — or any
 other figure — bump its `dataAsOf` to the date you checked** and, if needed,
 update `source`. The `custom` proposition has no date because the numbers are
 your own.
+
+The **currency conversion rates** live in the same file, in `window.FX`
+(`assets/js/data.js`). They're a static snapshot — `uahPer` maps each currency
+to its value in UAH — surfaced in the UI as an "FX as of …" note. When you
+refresh them, update `uahPer` and bump `asOf` (and `source` if needed). Adding
+a currency is a one-line edit to `window.CURRENCIES` plus its `uahPer` entry.
