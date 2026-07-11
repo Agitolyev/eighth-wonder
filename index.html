@@ -34,6 +34,11 @@
       <div class="panel controls">
         <h2 id="model-heading" class="section-title">2 · Your assumptions</h2>
 
+        <div class="currency-toggle" role="group" aria-label="Currency">
+          <button type="button" data-cur="$" class="cur-btn is-active">$ USD</button>
+          <button type="button" data-cur="&#8372;" class="cur-btn">&#8372; UAH</button>
+        </div>
+
         <label class="field">
           <span>Initial investment</span>
           <div class="input-affix">
@@ -85,20 +90,15 @@
         </div>
 
         <label class="field">
-          <span>Time horizon: <strong id="yearsLabel">10 years</strong></span>
-          <input id="years" type="range" min="1" max="30" step="1" value="10" />
+          <span>Time horizon: <strong id="yearsLabel">30 years</strong></span>
+          <input id="years" type="range" min="1" max="30" step="1" value="30" />
         </label>
-
-        <div class="currency-toggle" role="group" aria-label="Currency">
-          <button type="button" data-cur="$" class="cur-btn is-active">$ USD</button>
-          <button type="button" data-cur="&#8372;" class="cur-btn">&#8372; UAH</button>
-        </div>
 
         <p id="propNote" class="prop-note"></p>
       </div>
 
       <div class="panel results">
-        <h2 class="section-title">3 · Result after <span id="horizonOut">10</span> years</h2>
+        <h2 class="section-title">3 · Result after <span id="horizonOut">30</span> years</h2>
 
         <div class="compare">
           <article class="scenario scenario-simple">
