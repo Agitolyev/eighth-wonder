@@ -343,7 +343,7 @@ input[type="range"] {
   display: inline-flex;
   gap: 0.2rem;
   background: var(--bg-soft);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 0.22rem;
   margin-bottom: 1.4rem;
@@ -355,7 +355,12 @@ input[type="range"] {
   transition: background 0.14s ease, color 0.14s ease;
 }
 .cur-btn:hover { color: var(--ink); }
-.cur-btn.is-active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+.cur-btn.is-active {
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--line-strong);
+}
 
 .prop-note {
   font-size: 0.82rem;
@@ -527,7 +532,7 @@ td.diff { color: var(--compound); }
   display: flex;
   gap: 0.2rem;
   background: var(--bg-soft);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 0.22rem;
 }
@@ -544,7 +549,12 @@ td.diff { color: var(--compound); }
   transition: background 0.14s ease, color 0.14s ease;
 }
 .mode-btn:hover { color: var(--ink); }
-.mode-btn.is-active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+.mode-btn.is-active {
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--line-strong);
+}
 .mode-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Reinvest / Withdraw tag on chips and table rows. */
@@ -570,18 +580,20 @@ td.diff { color: var(--compound); }
   gap: 0.5rem;
   width: 100%;
   margin: 0.7rem 0 0.5rem;
-  padding: 0.7rem 1rem;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid transparent;
+  padding: 0.72rem 1rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.btn-add:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.btn-add:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.btn-add:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow); }
 .btn-add:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-add .btn-add-icon {
@@ -589,12 +601,14 @@ td.diff { color: var(--compound); }
   line-height: 1;
   font-weight: 700;
 }
+/* Already added — recede into a quiet "done" state. */
 .btn-add.is-added {
   background: transparent;
-  color: var(--faint);
+  color: var(--muted);
   cursor: default;
   transform: none;
-  border-color: var(--line);
+  box-shadow: none;
+  border-color: var(--line-strong);
 }
 
 /* ---------- Comparison panel ---------- */
