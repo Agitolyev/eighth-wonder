@@ -30,6 +30,30 @@
   function convert(amount, fromCode, toCode) {
     return (amount || 0) * uahPer(fromCode) / uahPer(toCode);
   }
+  // Parse a number the way people actually type money: many locales (Ukrainian
+  // included, and iOS shows a comma on the decimal keypad) use "," as the
+  // decimal separator and spaces for grouping. A native <input type="number">
+  // rejects those outright — its .value goes empty and the whole calc zeroes —
+  // so the money/rate fields are plain text and come through here instead.
+  function parseNum(raw) {
+    // Strip whitespace and NBSP / narrow-NBSP used as grouping separators.
+    var s = String(raw == null ? "" : raw).replace(/[\s\u00a0\u202f]/g, "");
+    if (!s) return 0;
+    var lastComma = s.lastIndexOf(",");
+    var lastDot = s.lastIndexOf(".");
+    if (lastComma > -1 && lastDot > -1) {
+      // Both present: the rightmost is the decimal point, the other is grouping.
+      s = lastComma > lastDot
+        ? s.replace(/\./g, "").replace(",", ".")
+        : s.replace(/,/g, "");
+    } else if (lastComma > -1) {
+      // Only commas: the last is the decimal point, any earlier ones grouping.
+      var parts = s.split(",");
+      s = parts.slice(0, -1).join("") + "." + parts[parts.length - 1];
+    }
+    var n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
   function symbolFor(code) {
     for (var i = 0; i < CURRENCIES.length; i++) {
       if (CURRENCIES[i].code === code) return CURRENCIES[i].symbol;
@@ -222,7 +246,7 @@
     return {
       principal: Math.max(0, convert(state.baseUAH.principal, "UAH", state.currencyCode)),
       monthly: Math.max(0, convert(state.baseUAH.contribution, "UAH", state.currencyCode)),
-      rate: Math.max(0, parseFloat(els.rate.value) || 0),
+      rate: Math.max(0, parseNum(els.rate.value)),
       frequency: parseInt(els.frequency.value, 10) || 12,
       years: parseInt(els.years.value, 10) || 1,
       wholeUnits: els.wholeUnits.checked,
@@ -526,7 +550,7 @@
       propId: state.propId,
       name: p.name || "Custom",
       mode: plotMode,
-      rate: Math.max(0, parseFloat(els.rate.value) || 0),
+      rate: Math.max(0, parseNum(els.rate.value)),
       frequency: parseInt(els.frequency.value, 10) || 12,
       years: parseInt(els.years.value, 10) || 1,
       wholeUnits: els.wholeUnits.checked,
@@ -931,14 +955,14 @@
     setCurrency(state.currencyCode);
     Object.keys(MONEY_KEYS).forEach(function (k) {
       state.baseUAH[MONEY_KEYS[k]] =
-        convert(parseFloat(els[k].value) || 0, state.currencyCode, "UAH");
+        convert(parseNum(els[k].value), state.currencyCode, "UAH");
     });
 
     // Money fields feed the UAH source of truth as the user types.
     Object.keys(MONEY_KEYS).forEach(function (k) {
       els[k].addEventListener("input", function () {
         state.baseUAH[MONEY_KEYS[k]] =
-          convert(parseFloat(els[k].value) || 0, state.currencyCode, "UAH");
+          convert(parseNum(els[k].value), state.currencyCode, "UAH");
         render();
       });
     });

@@ -58,7 +58,7 @@
           <span>Initial investment</span>
           <div class="input-affix">
             <span class="affix" data-affix="currency">$</span>
-            <input id="principal" type="number" min="0" step="100" value="1000" inputmode="decimal" />
+            <input id="principal" type="text" inputmode="decimal" value="1000" autocomplete="off" />
           </div>
         </label>
 
@@ -66,14 +66,14 @@
           <span>Monthly top-up <em>(optional)</em></span>
           <div class="input-affix">
             <span class="affix" data-affix="currency">$</span>
-            <input id="contribution" type="number" min="0" step="10" value="0" inputmode="decimal" />
+            <input id="contribution" type="text" inputmode="decimal" value="0" autocomplete="off" />
           </div>
         </label>
 
         <label class="field">
           <span>Projected annual return</span>
           <div class="input-affix">
-            <input id="rate" type="number" min="0" step="0.1" value="9.5" inputmode="decimal" />
+            <input id="rate" type="text" inputmode="decimal" value="9.5" autocomplete="off" />
             <span class="affix affix-right">% p.a.</span>
           </div>
         </label>
@@ -94,7 +94,7 @@
           </label>
           <div class="input-affix" id="stepWrap">
             <span class="affix" data-affix="currency">$</span>
-            <input id="step" type="number" min="0" step="1" value="10" inputmode="decimal" aria-label="Unit / minimum investment step" />
+            <input id="step" type="text" inputmode="decimal" value="10" autocomplete="off" aria-label="Unit / minimum investment step" />
             <span class="affix affix-right">per unit</span>
           </div>
           <p class="micro">
