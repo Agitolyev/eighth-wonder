@@ -716,6 +716,61 @@ td.diff { color: var(--compound); }
 #compareChart svg text { font-family: var(--mono); }
 #compareTable td.pos { color: var(--compound); }
 
+/* ---------- Limitations & risks ---------- */
+.risks-panel { padding: 1.5rem; }
+.risks-lead {
+  margin: 0 0 1.4rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  max-width: 72ch;
+}
+.risks-grid {
+  display: grid;
+  gap: 1.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.risk-group h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.risk-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+.risk-list li {
+  position: relative;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.risk-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.risk-list strong { color: var(--text); font-weight: 600; }
+.risks-foot {
+  margin: 1.5rem 0 0;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding: 2.5rem 0 3.5rem; }
 .site-footer p { color: var(--muted); font-size: 0.88rem; margin: 0 0 0.4rem; max-width: 72ch; }
