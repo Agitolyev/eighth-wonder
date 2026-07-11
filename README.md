@@ -11,6 +11,7 @@ It comes pre-loaded with the propositions I'm actually investing in:
 |---|---|---|
 | **Inzhur REIT** | ~9.5% p.a. (USD) | Commercial real estate. Pays **monthly dividends** — withdraw them (simple) or reinvest (compound). |
 | **Inzhur Energy** | ~15% p.a. (USD) | Power-plant fund, 5-year term. **No dividends** — value accrues via annual revaluation, so it compounds automatically. |
+| **Varto Wind** | ~14.29% p.a. (EUR) | Wind turbines in the Carpathians, ~11-year term. Pays **quarterly dividends** with a guaranteed 5% floor — withdraw them (simple) or reinvest (compound). |
 | **Custom** | your rate | A blank slate to model any rate, term and payout schedule. |
 
 > Projected returns are illustrative, quoted in USD terms, and **not
@@ -36,7 +37,11 @@ refresh them (see below).
   fraction-friendly reinvestment.
 - Interactive growth chart + a year-by-year breakdown table.
 - Optional recurring monthly top-up.
-- Toggle between **$ USD** and **₴ UAH** display.
+- Toggle the display currency between **$ USD**, **₴ UAH** and **€ EUR**.
+  Amounts are held internally in UAH and converted with a **static FX
+  snapshot** (National Bank of Ukraine rates, stamped with an "FX as of …"
+  note) — nothing is fetched at runtime, so the app stays offline-friendly.
+  The `%` rate is currency-independent and is never converted.
 - Runs entirely in your browser — no build step, no dependencies, no data leaves the page.
 
 ## Run locally
@@ -84,10 +89,16 @@ A `.nojekyll` file is included so the `assets/` folder is served untouched.
 ## Project layout
 
 ```
-index.html              markup
-assets/css/styles.css   styling
-assets/js/data.js       company propositions (add your own here)
-assets/js/app.js         simulation + rendering
+index.html                markup
+assets/css/styles.css     styling
+assets/js/data.js         company propositions (add your own here) + currencies
+assets/js/app.js          simulation + rendering
+assets/js/fx-rates.js     conversion rates the page loads (auto-generated)
+assets/data/fx-rates.csv  conversion rates, source of truth (updated daily)
+scripts/update-fx.mjs     fetches NBU rates → rewrites the CSV + regenerates the JS
+assets/js/funds-live.js   live per-fund figures the page loads (auto-generated)
+assets/data/funds.csv     per-fund certificate prices, source of truth (updated daily)
+scripts/update-funds.mjs  fetches official pages → rewrites the CSV + regenerates the JS
 ```
 
 Adding a new company is a one-object edit in `assets/js/data.js`.
@@ -101,3 +112,64 @@ stale rate as if it were live. **When you refresh a fund's `rate` — or any
 other figure — bump its `dataAsOf` to the date you checked** and, if needed,
 update `source`. The `custom` proposition has no date because the numbers are
 your own.
+
+### Currency conversion rates
+
+The **conversion rates** are refreshed automatically. Their source of truth is
+`assets/data/fx-rates.csv` (`currency,uah_per,as_of,source`), and the page
+loads them from `assets/js/fx-rates.js`, which is **generated** from the CSV —
+so the app never fetches at runtime and keeps working offline / straight from
+disk. A rate is always shown with an "FX as of …" note, so a stale figure is
+never presented as live.
+
+A GitHub Action ([`.github/workflows/update-fx.yml`](.github/workflows/update-fx.yml))
+runs daily at 06:20 UTC, pulls the latest [National Bank of Ukraine](https://bank.gov.ua)
+rates via `scripts/update-fx.mjs`, and commits the updated CSV + JS if anything
+changed. The Pages deploy then runs on its own daily schedule (07:00 UTC) to
+republish the site with the fresh rates — a commit made by the update job's
+built-in token can't trigger the deploy workflow directly, so the two are
+scheduled back to back instead.
+
+To refresh or fix the rates by hand:
+
+```bash
+node scripts/update-fx.mjs           # fetch the latest NBU rates, rewrite CSV + JS
+node scripts/update-fx.mjs --regen   # just regenerate the JS from the CSV (no network)
+```
+
+**Adding a currency:** add it to `window.CURRENCIES` in `assets/js/data.js`
+(code + symbol) and to the `DISPLAY` list in `scripts/update-fx.mjs` (its NBU
+3-letter code), then run the script. UAH is the base and is always `1`.
+
+### Per-fund figures
+
+The one *objective, verifiable* per-fund number — the **certificate / unit
+price** — is refreshed the same way. Its source of truth is
+`assets/data/funds.csv` (`id,unit_price_uah,as_of,source_url`), loaded via the
+generated `assets/js/funds-live.js`; the app uses it as the whole-unit
+reinvestment size and shows it with a **clickable link to the official page it
+came from**. Projected returns (`rate`) are *not* fetched — they're marketing
+projections and stay curated in `data.js` with their own `dataAsOf` / `source`
+(also now a link, via `sourceUrl`).
+
+A daily Action ([`.github/workflows/update-funds.yml`](.github/workflows/update-funds.yml),
+06:30 UTC) refreshes the prices **one job per fund** — the matrix is read
+straight from `funds.csv`, so adding a CSV row (plus an adapter) adds a job with
+no workflow edit. Running per fund means a blocked source only fails **its own**
+job, and the Actions UI shows exactly which fund's price is going stale. Each
+value carries an `as_of` date, surfaced in the UI as **"updated ‹date›"** so
+users always know how fresh it is.
+
+**On failure:** the offer sites are bot-protected and may block CI. When a
+fund's fetch or parse fails, `scripts/update-funds.mjs --fund <id>` (1) **falls
+back to the last-known price** and leaves its `as_of` stale — never fabricating
+a value or advancing the date — and (2) **exits non-zero so that fund's job is
+marked failed**, a visible per-fund signal that its data is going stale. Funds
+that *did* refresh still commit (`if: always()`); each job's status is
+independent. Because these sites routinely block automated requests, expect
+some of these jobs to fail often — that's the honest signal, not a bug.
+
+```bash
+node scripts/update-funds.mjs           # fetch official pages, rewrite CSV + JS
+node scripts/update-funds.mjs --regen   # regenerate the JS from the CSV (no network)
+```

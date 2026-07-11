@@ -6,12 +6,47 @@
   "use strict";
 
   var PROPS = window.PROPOSITIONS || [];
+  var CURRENCIES = window.CURRENCIES || [{ code: "USD", symbol: "$" }, { code: "UAH", symbol: "₴" }];
+  var FX = window.FX || { uahPer: { USD: 1, UAH: 1 } };
+  // Objective per-fund figures (certificate/unit price) refreshed daily from
+  // the official pages by scripts/update-funds.mjs; keyed by proposition id.
+  var FUND_LIVE = window.FUND_LIVE || {};
 
   // ---- State ----
+  // Money amounts are the source of truth in UAH (`baseUAH`); the input fields
+  // and results are just a view of them in the selected display currency.
   var state = {
     propId: PROPS.length ? PROPS[0].id : "custom",
+    currencyCode: "USD",
     currency: "$",
+    baseUAH: { principal: 0, contribution: 0, step: 0 },
   };
+
+  // ---- Currency / FX ----
+  function uahPer(code) {
+    var r = FX.uahPer && FX.uahPer[code];
+    return isFinite(r) && r > 0 ? r : 1;
+  }
+  function convert(amount, fromCode, toCode) {
+    return (amount || 0) * uahPer(fromCode) / uahPer(toCode);
+  }
+  function symbolFor(code) {
+    for (var i = 0; i < CURRENCIES.length; i++) {
+      if (CURRENCIES[i].code === code) return CURRENCIES[i].symbol;
+    }
+    return code;
+  }
+  // Round a UAH amount for display in the active currency: whole numbers for
+  // sizeable values, more precision for sub-unit amounts (e.g. a ₴10 step is
+  // ~$0.22, which must not round to zero).
+  function toDisplay(amountUAH) {
+    var v = convert(amountUAH, "UAH", state.currencyCode);
+    if (!isFinite(v)) return 0;
+    var abs = Math.abs(v);
+    var dp = abs >= 100 ? 0 : abs >= 1 ? 2 : 4;
+    var f = Math.pow(10, dp);
+    return Math.round(v * f) / f;
+  }
 
   // Geometry + data of the most recently drawn chart, for hover interaction.
   var chartHover = null;
@@ -32,6 +67,7 @@
     horizonOut: $("horizonOut"),
     propNote: $("propNote"),
     curBtns: document.querySelectorAll(".cur-btn"),
+    fxNote: $("fxNote"),
     affixCur: document.querySelectorAll('[data-affix="currency"]'),
     s_invested: $("s_invested"),
     s_income: $("s_income"),
@@ -61,6 +97,13 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  // Render `text` as a link to `url` (new tab), or plain escaped text if no url.
+  function link(url, text) {
+    if (!url) return escapeHtml(text);
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' +
+      escapeHtml(text) + "</a>";
   }
 
   /* -----------------------------------------------------------------------
@@ -164,16 +207,40 @@
 
   // ---- Read inputs ----
   function readInput() {
+    // Money comes from the UAH source of truth, converted to the display
+    // currency at full precision — so results never drift as you toggle
+    // currencies, and a sub-unit step isn't degraded by display rounding.
     return {
-      principal: Math.max(0, parseFloat(els.principal.value) || 0),
-      monthly: Math.max(0, parseFloat(els.contribution.value) || 0),
+      principal: Math.max(0, convert(state.baseUAH.principal, "UAH", state.currencyCode)),
+      monthly: Math.max(0, convert(state.baseUAH.contribution, "UAH", state.currencyCode)),
       rate: Math.max(0, parseFloat(els.rate.value) || 0),
       frequency: parseInt(els.frequency.value, 10) || 12,
       years: parseInt(els.years.value, 10) || 1,
       wholeUnits: els.wholeUnits.checked,
-      step: Math.max(0, parseFloat(els.step.value) || 0),
+      step: Math.max(0, convert(state.baseUAH.step, "UAH", state.currencyCode)),
       distributes: currentProp().distributes !== false,
     };
+  }
+
+  // Push the UAH source of truth into the money input fields, in display units.
+  function refreshMoneyFields() {
+    els.principal.value = toDisplay(state.baseUAH.principal);
+    els.contribution.value = toDisplay(state.baseUAH.contribution);
+    els.step.value = toDisplay(state.baseUAH.step);
+  }
+
+  // Apply a display currency: symbol, input affixes and the "FX as of" note.
+  var MONEY_KEYS = { principal: "principal", contribution: "contribution", step: "step" };
+  function setCurrency(code) {
+    state.currencyCode = code;
+    state.currency = symbolFor(code);
+    els.affixCur.forEach(function (n) { n.textContent = state.currency; });
+    if (els.fxNote) {
+      els.fxNote.textContent = code === "UAH"
+        ? ""
+        : "1 " + code + " = " + uahPer(code).toFixed(2) + " ₴ · updated " +
+          (FX.asOf || "unknown") + " · " + (FX.source || "FX");
+    }
   }
 
   // ---- Render everything ----
@@ -455,23 +522,41 @@
     } else {
       els.years.max = "30";
     }
-    if (p.minInvestment && (parseFloat(els.principal.value) || 0) < p.minInvestment) {
-      els.principal.value = p.minInvestment;
+    // minInvestment / unitSize are stored in UAH, matching the baseUAH source
+    // of truth; display conversion happens in refreshMoneyFields().
+    if (p.minInvestment && state.baseUAH.principal < p.minInvestment) {
+      state.baseUAH.principal = p.minInvestment;
     }
-    // The unit / minimum-investment step drives whole-unit reinvestment.
-    if (p.minInvestment && p.minInvestment > 0) {
-      els.step.value = p.minInvestment;
+    // The unit size drives whole-unit reinvestment. Some funds have an entry
+    // ticket larger than one unit (Varto: ~₴125k entry, but you top up one
+    // ~₴1,025 certificate at a time), so prefer unitSize and fall back to the
+    // entry minimum when a fund's ticket is a single unit. A daily-refreshed
+    // live certificate price (FUND_LIVE) overrides the curated unit size.
+    var live = FUND_LIVE[p.id];
+    var unit = (live && live.unitPriceUAH) || p.unitSize || p.minInvestment;
+    if (unit && unit > 0) {
+      state.baseUAH.step = unit;
       els.wholeUnits.checked = true;
     } else {
-      els.step.value = 0;
+      state.baseUAH.step = 0;
       els.wholeUnits.checked = false;
     }
+    refreshMoneyFields();
     syncStepState();
+
     var meta = p.dataAsOf
-      ? '<span class="asof-badge" title="' + (p.source || "") + '">Data as of ' + p.dataAsOf + "</span> "
+      ? '<span class="asof-badge" title="' + escapeHtml(p.source || "") + '">Data as of ' + escapeHtml(p.dataAsOf) + "</span> "
       : "";
-    els.propNote.innerHTML = meta + escapeHtml(p.note) +
-      (p.source ? '<span class="prop-source">Source: ' + escapeHtml(p.source) + "</span>" : "");
+    var sourceLine = p.source
+      ? '<span class="prop-source">Source: ' + link(p.sourceUrl, p.source) + "</span>"
+      : "";
+    // Provenance for the auto-tracked certificate price (with its own date/link).
+    var priceLine = live && live.unitPriceUAH
+      ? '<span class="prop-source">Certificate price ₴' + escapeHtml(live.unitPriceUAH) +
+        (live.asOf ? " · updated " + escapeHtml(live.asOf) : "") +
+        " · " + link(live.sourceUrl, "official page") + "</span>"
+      : "";
+    els.propNote.innerHTML = meta + escapeHtml(p.note) + sourceLine + priceLine;
 
     // reflect active state on cards
     var cards = els.cards.querySelectorAll(".card");
@@ -499,7 +584,23 @@
   function init() {
     renderCards();
 
-    ["principal", "contribution", "rate", "frequency", "years", "step"].forEach(function (k) {
+    // Seed the display currency, then read the HTML default amounts (typed in
+    // that currency) into the UAH source of truth.
+    setCurrency(state.currencyCode);
+    Object.keys(MONEY_KEYS).forEach(function (k) {
+      state.baseUAH[MONEY_KEYS[k]] =
+        convert(parseFloat(els[k].value) || 0, state.currencyCode, "UAH");
+    });
+
+    // Money fields feed the UAH source of truth as the user types.
+    Object.keys(MONEY_KEYS).forEach(function (k) {
+      els[k].addEventListener("input", function () {
+        state.baseUAH[MONEY_KEYS[k]] =
+          convert(parseFloat(els[k].value) || 0, state.currencyCode, "UAH");
+        render();
+      });
+    });
+    ["rate", "frequency", "years"].forEach(function (k) {
       els[k].addEventListener("input", render);
     });
 
@@ -514,9 +615,10 @@
 
     els.curBtns.forEach(function (b) {
       b.addEventListener("click", function () {
-        var sym = b.getAttribute("data-cur") === "$" ? "$" : "₴";
-        state.currency = sym;
-        els.affixCur.forEach(function (n) { n.textContent = sym; });
+        var code = b.getAttribute("data-cur");
+        if (!code || code === state.currencyCode) return;
+        setCurrency(code);          // symbol + affixes + FX note
+        refreshMoneyFields();       // re-express the same UAH amounts
         els.curBtns.forEach(function (x) { x.classList.remove("is-active"); });
         b.classList.add("is-active");
         render();
