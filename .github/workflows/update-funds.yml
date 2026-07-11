@@ -36,9 +36,14 @@ jobs:
           node-version: "20"
 
       - name: Fetch latest fund figures
+        # Exits non-zero if any fund fails to refresh (the job is then marked
+        # failed), but still writes the CSV/JS with the fallback values first.
         run: node scripts/update-funds.mjs
 
       - name: Commit updated fund data
+        # Run even when the fetch step failed, so any funds that DID refresh are
+        # still committed. The job's overall status stays failed.
+        if: always()
         run: |
           if [[ -z "$(git status --porcelain assets/data/funds.csv assets/js/funds-live.js)" ]]; then
             echo "Fund data unchanged — nothing to commit."

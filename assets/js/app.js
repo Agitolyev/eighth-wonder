@@ -238,8 +238,8 @@
     if (els.fxNote) {
       els.fxNote.textContent = code === "UAH"
         ? ""
-        : "1 " + code + " = " + uahPer(code).toFixed(2) + " ₴ · " +
-          (FX.source || "FX") + ", " + (FX.asOf || "");
+        : "1 " + code + " = " + uahPer(code).toFixed(2) + " ₴ · updated " +
+          (FX.asOf || "unknown") + " · " + (FX.source || "FX");
     }
   }
 
@@ -553,8 +553,8 @@
     // Provenance for the auto-tracked certificate price (with its own date/link).
     var priceLine = live && live.unitPriceUAH
       ? '<span class="prop-source">Certificate price ₴' + escapeHtml(live.unitPriceUAH) +
-        " — " + link(live.sourceUrl, "official page") +
-        (live.asOf ? ", " + escapeHtml(live.asOf) : "") + "</span>"
+        (live.asOf ? " · updated " + escapeHtml(live.asOf) : "") +
+        " · " + link(live.sourceUrl, "official page") + "</span>"
       : "";
     els.propNote.innerHTML = meta + escapeHtml(p.note) + sourceLine + priceLine;
 

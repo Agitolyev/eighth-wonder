@@ -154,11 +154,19 @@ projections and stay curated in `data.js` with their own `dataAsOf` / `source`
 
 A daily Action ([`.github/workflows/update-funds.yml`](.github/workflows/update-funds.yml),
 06:30 UTC) runs `scripts/update-funds.mjs`, which reads each fund's official
-page and parses the price. The offer sites are **bot-protected and may block
-CI** — when a fetch or parse fails, the script keeps the last-known price and
-**leaves its `as_of` date stale** (never fabricating a value), so the UI shows
-the real age. Each fund has an adapter in the `ADAPTERS` map; point a new fund
-at its official page with a row in the CSV plus an adapter entry.
+page and parses the price. Each value carries an `as_of` date, surfaced in the
+UI as **"updated ‹date›"** so users always know how fresh it is. Each fund has
+an adapter in the `ADAPTERS` map; point a new fund at its official page with a
+row in the CSV plus an adapter entry.
+
+**On failure:** the offer sites are bot-protected and may block CI. When a
+fetch or parse fails, the script (1) **falls back to the last-known price** and
+leaves its `as_of` stale — never fabricating a value or advancing the date —
+and (2) **exits non-zero so the workflow run is marked failed**, a visible
+signal that the data is going stale. Funds that *did* refresh are still
+committed (the commit step runs `if: always()`); the run's status stays failed.
+Because these sites routinely block automated requests, expect this job to fail
+often — that's the honest signal, not a bug.
 
 ```bash
 node scripts/update-funds.mjs           # fetch official pages, rewrite CSV + JS

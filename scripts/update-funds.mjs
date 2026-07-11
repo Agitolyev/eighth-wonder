@@ -132,32 +132,42 @@ async function fetchPrice(url) {
 async function main() {
   const regen = process.argv.includes("--regen");
   const rows = parseCsv(await readFile(CSV, "utf8"));
+  const failed = [];
 
   if (!regen) {
     const today = new Date().toISOString().slice(0, 10);
     for (const row of rows) {
       const adapter = ADAPTERS[row.id];
       if (!adapter || !row.source_url) {
-        console.log(`- ${row.id}: no adapter/source, keeping ${row.unit_price_uah}`);
+        console.log(`- ${row.id}: no adapter/source, keeping ₴${row.unit_price_uah} (updated ${row.as_of})`);
         continue;
       }
       try {
         const price = adapter(await fetchPrice(row.source_url));
         if (price == null) throw new Error("no price parsed");
         row.unit_price_uah = price;
-        row.as_of = today; // only advance the date on a real, parsed value
-        console.log(`✓ ${row.id}: ${price} (as of ${today})`);
+        row.as_of = today; // advance the "updated at" only on a real, parsed value
+        console.log(`✓ ${row.id}: ₴${price} (updated ${today})`);
       } catch (err) {
-        // Keep last-known; leave as_of stale so the UI shows the real age.
-        console.log(`! ${row.id}: fetch/parse failed (${err.message}), keeping ${row.unit_price_uah} from ${row.as_of}`);
+        // FALLBACK: keep the last-known price and leave as_of stale, so the UI
+        // shows the real age and no value is fabricated. Record the failure.
+        failed.push(`${row.id} (${err.message})`);
+        console.log(`! ${row.id}: FAILED — kept ₴${row.unit_price_uah} from ${row.as_of}`);
       }
     }
     await mkdir(path.dirname(CSV), { recursive: true });
-    await writeFile(CSV, toCsv(rows));
+    await writeFile(CSV, toCsv(rows)); // preserves previous values for failed funds
   }
 
   await writeFile(JS, toJs(rows));
-  console.log(`funds ${regen ? "regenerated" : "updated"}: ${rows.length} rows`);
+  console.log(`funds ${regen ? "regenerated" : "updated"}: ${rows.length} rows, ${failed.length} failed`);
+
+  // Mark the job as failed if any fund could not be refreshed. Previous values
+  // are already written above, so the site keeps serving the last-known data.
+  if (failed.length) {
+    console.error(`update-funds: ${failed.length} fund(s) failed: ${failed.join("; ")}`);
+    process.exitCode = 1;
+  }
 }
 
 export { parseUahPrice, parseCsv, toCsv, toJs, ADAPTERS };
