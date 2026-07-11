@@ -26,7 +26,8 @@ refresh them (see below).
 
 ## Features
 
-- Pick a proposition; the rate, payout frequency and term auto-fill (all editable).
+- Pick a proposition; the rate and payout frequency auto-fill (all editable).
+  Your time horizon is preserved when you switch propositions.
 - **Withdraw vs Reinvest** compared side by side: total invested, income
   withdrawn / interest earned, and ending net worth.
 - The **compounding advantage** — how much extra reinvesting earns you.
