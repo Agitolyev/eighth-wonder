@@ -84,6 +84,36 @@ window.PROPOSITIONS = [
     url: "https://www.inzhur.reit/offer/inzhur-energy",
   },
   {
+    id: "varto-wind",
+    name: "Varto Wind",
+    operator: "Varto (КУА «Портофін»)",
+    tagline: "Co-own operating wind turbines in the Carpathians.",
+    rate: 14.29,
+    currency: "EUR",
+    payout: "quarterly",
+    distributes: true,
+    minInvestment: 125000,
+    termYears: 11,
+    accent: "#22c55e",
+    highlights: [
+      "~14.29% p.a. projected in EUR (incl. eventual asset sale)",
+      "Guaranteed 5% p.a. floor + variable generation income",
+      "Quarterly cash payouts from real electricity sales",
+      "Entry from ~₴125,000 (≈122 certificates)",
+    ],
+    note:
+      "Varto sells investment certificates that make you an indirect " +
+      "co-owner of two operating wind turbines (10.4 MW) in Zakarpattia. A " +
+      "5% p.a. minimum is guaranteed regardless of weather; anything above " +
+      "that is variable income from actual generation and market prices. " +
+      "Quarterly payouts are cash you can withdraw (simple) or reinvest " +
+      "(compound). The fund exits by selling the asset after ~11 years — " +
+      "projected returns are not guaranteed.",
+    dataAsOf: "2026-07-11",
+    source: "varto.investments offer page + public reporting (NV, dev.ua, Epravda)",
+    url: "https://varto.investments/about-fund",
+  },
+  {
     id: "custom",
     name: "Custom",
     operator: "You",

@@ -11,6 +11,7 @@ It comes pre-loaded with the propositions I'm actually investing in:
 |---|---|---|
 | **Inzhur REIT** | ~9.5% p.a. (USD) | Commercial real estate. Pays **monthly dividends** — withdraw them (simple) or reinvest (compound). |
 | **Inzhur Energy** | ~15% p.a. (USD) | Power-plant fund, 5-year term. **No dividends** — value accrues via annual revaluation, so it compounds automatically. |
+| **Varto Wind** | ~14.29% p.a. (EUR) | Wind turbines in the Carpathians, ~11-year term. Pays **quarterly dividends** with a guaranteed 5% floor — withdraw them (simple) or reinvest (compound). |
 | **Custom** | your rate | A blank slate to model any rate, term and payout schedule. |
 
 > Projected returns are illustrative, quoted in USD terms, and **not
