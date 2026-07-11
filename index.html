@@ -4,13 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Eighth Wonder — Simple vs Compound Interest Calculator</title>
-  <meta name="description" content="Compare simple interest (withdraw your returns) against compound interest (reinvest) side by side, for Inzhur REIT, Inzhur Energy and custom investments." />
+  <meta name="description" content="Compare simple interest (withdraw your returns) against compound interest (reinvest) side by side for REITs, renewable-energy funds and custom investments." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <script>
+    // Resolve the theme before first paint to avoid a flash of the wrong mode.
+    (function () {
+      try {
+        var stored = localStorage.getItem("theme");
+        var dark = stored
+          ? stored === "dark"
+          : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
   <header class="hero">
     <div class="wrap">
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false"></button>
       <p class="eyebrow">The Eighth Wonder</p>
       <h1>Simple vs Compound Interest</h1>
       <p class="lede">
@@ -97,6 +110,23 @@
         </label>
 
         <p id="propNote" class="prop-note"></p>
+
+        <div class="plot-mode">
+          <span class="plot-mode-label">Add to comparison as</span>
+          <div class="mode-toggle" role="group" aria-label="Add to comparison as">
+            <button type="button" data-mode="reinvest" class="mode-btn is-active">Reinvest</button>
+            <button type="button" data-mode="withdraw" class="mode-btn">Withdraw</button>
+          </div>
+        </div>
+        <button type="button" id="addCompare" class="btn-add">
+          <span class="btn-add-icon" aria-hidden="true">+</span>
+          <span id="addCompareLabel">Add Reinvest to comparison</span>
+        </button>
+        <p class="micro">
+          Each entry plots one line — the mode you picked above. Tweak the rate,
+          top-up or horizon and add again to compare the same fund under
+          different assumptions, or plot Withdraw against Reinvest side by side.
+        </p>
       </div>
 
       <div class="panel results">
@@ -165,14 +195,62 @@
         </details>
       </div>
     </section>
+
+    <!-- Multi-option comparison -->
+    <section aria-labelledby="compare-heading">
+      <h2 id="compare-heading" class="section-title">4 · Compare options</h2>
+      <div class="panel compare-panel">
+        <div class="compare-head">
+          <p class="compare-lead" id="compareLead">
+            Every option you add is plotted here side by side — compare
+            different funds, or the same fund under different rates, top-ups
+            and horizons.
+          </p>
+          <button type="button" id="clearCompare" class="btn-ghost" hidden>Clear all</button>
+        </div>
+
+        <p id="compareEmpty" class="compare-empty">
+          Nothing added yet — your saved options will appear here so you can
+          plot and compare them.
+        </p>
+
+        <div id="compareBody" hidden>
+          <ul id="compareList" class="compare-list" aria-label="Saved options"></ul>
+
+          <figure class="chart">
+            <div id="compareChart" role="img" aria-label="Net worth compared across saved options"></div>
+            <figcaption class="micro compare-caption">
+              Each line is one option&rsquo;s net worth over time — the
+              <strong>Reinvest</strong> or <strong>Withdraw</strong> path you
+              chose when adding it — in the selected currency.
+            </figcaption>
+          </figure>
+
+          <div class="table-scroll">
+            <table id="compareTable">
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th>Mode</th>
+                  <th>Rate</th>
+                  <th>Horizon</th>
+                  <th>Net worth</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
       <p>
         <strong>This is a modelling tool, not financial or investment advice.</strong>
-        Built for modelling <a href="https://www.inzhur.reit/" target="_blank" rel="noopener">Inzhur</a>
-        REIT &amp; Energy, Varto Wind and custom propositions. Projected returns
+        Built for modelling REITs, renewable-energy funds and your own custom
+        propositions. Projected returns
         are illustrative, quoted in each fund&rsquo;s own currency, and
         <strong>not guaranteed</strong> — do your own research before investing.
         Currency conversion uses a static rate snapshot, not live rates.
@@ -180,6 +258,40 @@
       <p class="muted">Open source · runs entirely in your browser · no data leaves this page.</p>
     </div>
   </footer>
+
+  <script>
+    // Dark-mode toggle: flip data-theme, persist the choice, keep following the
+    // OS preference until the user makes an explicit pick.
+    (function () {
+      var btn = document.getElementById("themeToggle");
+      if (!btn) return;
+      var root = document.documentElement;
+      function isDark() { return root.getAttribute("data-theme") === "dark"; }
+      function render() {
+        var dark = isDark();
+        btn.textContent = dark ? "☀️" : "🌙";
+        btn.setAttribute("aria-pressed", dark ? "true" : "false");
+        btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      }
+      btn.addEventListener("click", function () {
+        var next = isDark() ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("theme", next); } catch (e) {}
+        render();
+      });
+      if (window.matchMedia) {
+        var mq = window.matchMedia("(prefers-color-scheme: dark)");
+        var onChange = function (e) {
+          try { if (localStorage.getItem("theme")) return; } catch (err) {}
+          root.setAttribute("data-theme", e.matches ? "dark" : "light");
+          render();
+        };
+        if (mq.addEventListener) mq.addEventListener("change", onChange);
+        else if (mq.addListener) mq.addListener(onChange);
+      }
+      render();
+    })();
+  </script>
 
   <script src="assets/js/data.js"></script>
   <script src="assets/js/fx-rates.js"></script>

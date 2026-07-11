@@ -81,6 +81,15 @@
     advantagePct: $("advantagePct"),
     chart: $("chart"),
     tableBody: document.querySelector("#table tbody"),
+    addCompare: $("addCompare"),
+    addCompareLabel: $("addCompareLabel"),
+    modeBtns: document.querySelectorAll(".mode-btn"),
+    clearCompare: $("clearCompare"),
+    compareEmpty: $("compareEmpty"),
+    compareBody: $("compareBody"),
+    compareList: $("compareList"),
+    compareChart: $("compareChart"),
+    compareTableBody: document.querySelector("#compareTable tbody"),
   };
 
   // ---- Formatting ----
@@ -272,6 +281,7 @@
 
     drawChart(r.rows);
     drawTable(r.rows);
+    refreshAddButton();
   }
 
   /* -----------------------------------------------------------------------
@@ -475,6 +485,338 @@
     els.tableBody.innerHTML = html;
   }
 
+  /* =======================================================================
+   * Multi-option comparison
+   *
+   * A comparison entry is a frozen snapshot of the current setup: the chosen
+   * proposition's identity plus every assumption. Money is stored in the UAH
+   * source of truth (like the live inputs) so entries re-express correctly
+   * when the display currency changes — they are re-simulated on each render
+   * rather than caching currency-specific numbers.
+   * ===================================================================== */
+  var comparisons = [];
+  var compareSeq = 0;
+  var COMPARE_MAX = 6;
+  // Which single trajectory the next "Add" captures: 'reinvest' or 'withdraw'.
+  var plotMode = "reinvest";
+  function modeLabel(mode) { return mode === "withdraw" ? "Withdraw" : "Reinvest"; }
+  // Distinct, theme-safe line colours; assigned so removals don't recolour.
+  var COMPARE_PALETTE = [
+    "#0f9d63", "#2563eb", "#f59e0b", "#e11d48",
+    "#8b5cf6", "#0891b2", "#65a30d", "#db2777",
+  ];
+  var compareHover = null;
+
+  // A stable fingerprint of a setup, so the same option isn't added twice.
+  // The plot mode is part of the identity: Withdraw and Reinvest of the same
+  // setup are two distinct lines you may want side by side.
+  function signatureOf(entry) {
+    return [
+      entry.propId, entry.mode, entry.rate, entry.frequency, entry.years,
+      entry.wholeUnits ? 1 : 0, entry.distributes ? 1 : 0,
+      Math.round(entry.baseUAH.principal), Math.round(entry.baseUAH.contribution),
+      Math.round(entry.baseUAH.step),
+    ].join("|");
+  }
+
+  // Snapshot the current inputs into a comparison entry (no colour yet).
+  function currentSetupEntry() {
+    var p = currentProp();
+    return {
+      propId: state.propId,
+      name: p.name || "Custom",
+      mode: plotMode,
+      rate: Math.max(0, parseFloat(els.rate.value) || 0),
+      frequency: parseInt(els.frequency.value, 10) || 12,
+      years: parseInt(els.years.value, 10) || 1,
+      wholeUnits: els.wholeUnits.checked,
+      distributes: currentProp().distributes !== false,
+      baseUAH: {
+        principal: state.baseUAH.principal,
+        contribution: state.baseUAH.contribution,
+        step: state.baseUAH.step,
+      },
+    };
+  }
+
+  function pickColor() {
+    var used = {};
+    comparisons.forEach(function (c) { used[c.color] = true; });
+    for (var i = 0; i < COMPARE_PALETTE.length; i++) {
+      if (!used[COMPARE_PALETTE[i]]) return COMPARE_PALETTE[i];
+    }
+    return COMPARE_PALETTE[comparisons.length % COMPARE_PALETTE.length];
+  }
+
+  // Is the current setup already saved? Drives the Add button's state.
+  function currentIsSaved() {
+    var sig = signatureOf(currentSetupEntry());
+    return comparisons.some(function (c) { return c.signature === sig; });
+  }
+
+  function refreshAddButton() {
+    if (!els.addCompare) return;
+    var full = comparisons.length >= COMPARE_MAX;
+    var saved = currentIsSaved();
+    els.addCompare.disabled = full && !saved;
+    els.addCompare.classList.toggle("is-added", saved);
+    els.addCompareLabel.textContent = saved
+      ? "Added to comparison"
+      : full
+        ? "Comparison full (" + COMPARE_MAX + " max)"
+        : "Add " + modeLabel(plotMode) + " to comparison";
+  }
+
+  function addComparison() {
+    if (comparisons.length >= COMPARE_MAX) return;
+    var entry = currentSetupEntry();
+    entry.signature = signatureOf(entry);
+    if (comparisons.some(function (c) { return c.signature === entry.signature; })) return;
+    entry.id = "cmp" + (++compareSeq);
+    entry.color = pickColor();
+    entry.label = entry.name + " · " + entry.rate + "%";
+    entry.modeText = modeLabel(entry.mode);
+    comparisons.push(entry);
+    renderComparisons();
+    refreshAddButton();
+  }
+
+  function removeComparison(id) {
+    comparisons = comparisons.filter(function (c) { return c.id !== id; });
+    renderComparisons();
+    refreshAddButton();
+  }
+
+  function clearComparisons() {
+    comparisons = [];
+    renderComparisons();
+    refreshAddButton();
+  }
+
+  function freqLabel(frequency) {
+    return frequency === 1 ? "annual" : frequency === 4 ? "quarterly" : "monthly";
+  }
+
+  // Re-simulate every entry in the active currency and return chart/table data.
+  // Amount-bearing labels are rebuilt here so they track the display currency.
+  function computeComparisons() {
+    return comparisons.map(function (c) {
+      var principal = Math.max(0, convert(c.baseUAH.principal, "UAH", state.currencyCode));
+      var monthly = Math.max(0, convert(c.baseUAH.contribution, "UAH", state.currencyCode));
+      var input = {
+        principal: principal,
+        monthly: monthly,
+        rate: c.rate,
+        frequency: c.frequency,
+        years: c.years,
+        wholeUnits: c.wholeUnits,
+        step: Math.max(0, convert(c.baseUAH.step, "UAH", state.currencyCode)),
+        distributes: c.distributes,
+      };
+      var r = simulate(input);
+      // Describe the assumptions that make this entry distinct from another
+      // run of the same fund: starting amount, top-up and payout cadence.
+      var money = fmt(principal) + (monthly > 0 ? " +" + fmt(monthly) + "/mo" : "");
+      var withdraw = c.mode === "withdraw";
+      // One line per entry: the chosen trajectory only.
+      var seriesKey = withdraw ? "simpleNet" : "compound";
+      var net = withdraw ? r.simpleNet : r.compound;
+      return {
+        id: c.id,
+        color: c.color,
+        name: c.name,
+        label: c.label,
+        modeText: c.modeText,
+        rate: c.rate,
+        years: c.years,
+        moneyFreq: money + " · " + freqLabel(c.frequency),
+        chipDetail: money + " · " + c.years + "y · " + freqLabel(c.frequency),
+        rows: r.rows.map(function (d) { return { year: d.year, value: d[seriesKey] }; }),
+        net: net,
+      };
+    });
+  }
+
+  function renderComparisons() {
+    var has = comparisons.length > 0;
+    els.compareEmpty.hidden = has;
+    els.compareBody.hidden = !has;
+    els.clearCompare.hidden = !has;
+    if (!has) { compareHover = null; return; }
+
+    var data = computeComparisons();
+
+    // Chips (also the chart legend) + summary table.
+    els.compareList.innerHTML = data.map(function (d) {
+      var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
+      return '<li class="compare-chip">' +
+        '<span class="compare-swatch" style="background:' + d.color + '"></span>' +
+        '<span class="chip-text">' +
+          '<span class="name">' + escapeHtml(d.label) +
+            ' <span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></span>" +
+          '<span class="detail">' + escapeHtml(d.chipDetail) + "</span>" +
+        "</span>" +
+        '<span class="val">' + fmt(d.net) + "</span>" +
+        '<button type="button" class="compare-remove" data-id="' + d.id +
+        '" aria-label="Remove ' + escapeHtml(d.label) + " (" + escapeHtml(d.modeText) + ')">&times;</button>' +
+        "</li>";
+    }).join("");
+
+    els.compareTableBody.innerHTML = data.map(function (d) {
+      var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
+      return "<tr>" +
+        '<td><span class="opt-name">' + escapeHtml(d.name) + "</span>" +
+          '<span class="opt-detail">' + escapeHtml(d.moneyFreq) + "</span></td>" +
+        '<td><span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></td>" +
+        "<td>" + d.rate + "%</td>" +
+        "<td>" + d.years + (d.years === 1 ? " yr" : " yrs") + "</td>" +
+        "<td>" + fmt(d.net) + "</td>" +
+        "</tr>";
+    }).join("");
+
+    drawComparisonChart(data);
+  }
+
+  /* -----------------------------------------------------------------------
+   * Comparison chart — one reinvest (compound) line per saved option, on a
+   * shared scale. Options with shorter horizons simply end earlier.
+   * --------------------------------------------------------------------- */
+  function drawComparisonChart(series) {
+    var W = 720, H = 320;
+    var m = { top: 18, right: 16, bottom: 30, left: 64 };
+    var iw = W - m.left - m.right;
+    var ih = H - m.top - m.bottom;
+
+    var maxX = 1, maxY = 0;
+    series.forEach(function (s) {
+      s.rows.forEach(function (d) {
+        maxX = Math.max(maxX, d.year);
+        maxY = Math.max(maxY, d.value);
+      });
+    });
+    maxY = niceCeil(maxY);
+
+    function x(v) { return m.left + (maxX ? (v / maxX) * iw : 0); }
+    function y(v) { return m.top + ih - (maxY ? (v / maxY) * ih : 0); }
+
+    var ticks = 4, grid = "", yLabels = "";
+    for (var t = 0; t <= ticks; t++) {
+      var val = (maxY / ticks) * t;
+      var gy = y(val).toFixed(1);
+      grid += '<line x1="' + m.left + '" y1="' + gy + '" x2="' + (W - m.right) + '" y2="' + gy + '" />';
+      yLabels += '<text x="' + (m.left - 10) + '" y="' + (parseFloat(gy) + 4) +
+        '" text-anchor="end" fill="#9a9a9d" font-size="11">' + shortMoney(val) + "</text>";
+    }
+
+    var xLabels = "";
+    var step = Math.max(1, Math.round(maxX / 6));
+    for (var xi = 0; xi <= maxX; xi += step) {
+      xLabels += '<text x="' + x(xi).toFixed(1) + '" y="' + (H - 8) +
+        '" text-anchor="middle" fill="#9a9a9d" font-size="11">' + xi + "</text>";
+    }
+    if ((maxX % step) !== 0) {
+      xLabels += '<text x="' + x(maxX).toFixed(1) + '" y="' + (H - 8) +
+        '" text-anchor="middle" fill="#9a9a9d" font-size="11">' + maxX + "</text>";
+    }
+
+    var lines = series.map(function (s) {
+      var d = s.rows.map(function (pt, i) {
+        return (i ? "L" : "M") + x(pt.year).toFixed(1) + " " + y(pt.value).toFixed(1);
+      }).join(" ");
+      var last = s.rows[s.rows.length - 1];
+      return '<path d="' + d + '" fill="none" stroke="' + s.color +
+        '" stroke-width="2.5" stroke-linejoin="round" />' +
+        endDot(x(last.year), y(last.value), s.color);
+    }).join("");
+
+    var svg =
+      '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
+        grid + yLabels + xLabels + lines + comparisonHoverLayer(series) +
+      "</svg>";
+
+    els.compareChart.innerHTML = svg;
+    compareHover = { series: series, x: x, y: y, m: m, iw: iw, ih: ih, W: W, H: H, maxX: maxX };
+  }
+
+  var CTIP_W = 244;
+  function comparisonHoverLayer(series) {
+    var head = 24, rowH = 20, pad = 10;
+    var TIP_H = head + series.length * rowH + pad;
+    var rows = series.map(function (s, i) {
+      var ry = head + i * rowH + 8;
+      var tl = s.label + " · " + s.modeText;
+      return '<g id="ctipRow' + i + '">' +
+        '<circle cx="15" cy="' + ry + '" r="4" fill="' + s.color + '" />' +
+        '<text x="26" y="' + (ry + 4) + '" fill="rgba(255,255,255,0.62)" font-size="11">' +
+          escapeHtml(tl.length > 26 ? tl.slice(0, 25) + "…" : tl) + "</text>" +
+        '<text id="ctipVal' + i + '" x="' + (CTIP_W - 12) + '" y="' + (ry + 4) +
+          '" text-anchor="end" fill="#ffffff" font-size="11" font-weight="600"></text>' +
+      "</g>";
+    }).join("");
+    return (
+      '<g id="hoverLayer" style="display:none" pointer-events="none">' +
+        '<line id="hoverLine" stroke-width="1" stroke-dasharray="3 3" />' +
+        '<g id="hoverTip">' +
+          '<rect width="' + CTIP_W + '" height="' + TIP_H + '" rx="9" ry="9" ' +
+            'fill="rgba(10,10,10,0.96)" stroke="rgba(255,255,255,0.12)" stroke-width="1" />' +
+          '<text id="ctipYear" x="12" y="16" fill="#ffffff" font-size="12" font-weight="700"></text>' +
+          rows +
+        "</g>" +
+      "</g>"
+    );
+  }
+
+  function onComparisonHover(e) {
+    var h = compareHover;
+    if (!h) return;
+    var svg = els.compareChart.querySelector("svg");
+    if (!svg || !svg.getScreenCTM) return;
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return;
+
+    var pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    var loc = pt.matrixTransform(ctm.inverse());
+
+    var frac = h.iw ? (loc.x - h.m.left) / h.iw : 0;
+    frac = Math.max(0, Math.min(1, frac));
+    var year = Math.round(frac * h.maxX);
+    var px = h.x(year);
+
+    setAttrs(svg.querySelector("#hoverLine"), {
+      x1: px.toFixed(1), x2: px.toFixed(1), y1: h.m.top, y2: (h.m.top + h.ih),
+    });
+    svg.querySelector("#ctipYear").textContent = "Year " + year;
+
+    var tipH = 24 + h.series.length * 20 + 10;
+    h.series.forEach(function (s, i) {
+      var row = s.rows[year]; // rows are one-per-year, indexed by year
+      var valNode = svg.querySelector("#ctipVal" + i);
+      var rowNode = svg.querySelector("#ctipRow" + i);
+      if (row) {
+        if (valNode) valNode.textContent = fmt(row.value);
+        if (rowNode) rowNode.style.opacity = "1";
+      } else {
+        if (valNode) valNode.textContent = "—";
+        if (rowNode) rowNode.style.opacity = "0.4";
+      }
+    });
+
+    var tipX = px + 14;
+    if (tipX + CTIP_W > h.W - h.m.right) tipX = px - 14 - CTIP_W;
+    tipX = Math.max(h.m.left, Math.min(tipX, h.W - h.m.right - CTIP_W));
+    var tipY = Math.max(h.m.top, Math.min(h.m.top + 6, h.m.top + h.ih - tipH));
+    svg.querySelector("#hoverTip").setAttribute("transform", "translate(" + tipX.toFixed(1) + " " + tipY.toFixed(1) + ")");
+
+    svg.querySelector("#hoverLayer").style.display = "";
+  }
+
+  function hideComparisonHover() {
+    if (!compareHover) return;
+    var layer = els.compareChart.querySelector("#hoverLayer");
+    if (layer) layer.style.display = "none";
+  }
+
   /* -----------------------------------------------------------------------
    * Proposition cards
    * --------------------------------------------------------------------- */
@@ -613,6 +955,27 @@
     els.chart.addEventListener("pointermove", onChartHover);
     els.chart.addEventListener("pointerleave", hideChartHover);
 
+    // Comparison: add / remove / clear + its own chart hover.
+    els.modeBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var mode = b.getAttribute("data-mode");
+        if (!mode || mode === plotMode) return;
+        plotMode = mode;
+        els.modeBtns.forEach(function (x) {
+          x.classList.toggle("is-active", x === b);
+        });
+        refreshAddButton();
+      });
+    });
+    els.addCompare.addEventListener("click", addComparison);
+    els.clearCompare.addEventListener("click", clearComparisons);
+    els.compareList.addEventListener("click", function (e) {
+      var btn = e.target.closest(".compare-remove");
+      if (btn) removeComparison(btn.getAttribute("data-id"));
+    });
+    els.compareChart.addEventListener("pointermove", onComparisonHover);
+    els.compareChart.addEventListener("pointerleave", hideComparisonHover);
+
     els.curBtns.forEach(function (b) {
       b.addEventListener("click", function () {
         var code = b.getAttribute("data-cur");
@@ -622,6 +985,7 @@
         els.curBtns.forEach(function (x) { x.classList.remove("is-active"); });
         b.classList.add("is-active");
         render();
+        renderComparisons();        // saved options re-express in the new currency
       });
     });
 
