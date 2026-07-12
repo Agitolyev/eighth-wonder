@@ -388,6 +388,22 @@ input[type="range"] {
 .term-warning.is-hidden { display: none; }
 .field.is-hidden { display: none; }
 
+/* Today's-money (real terms) control. */
+.real-field .checkbox { margin-bottom: 0.55rem; }
+.real-field.is-off #inflWrap { opacity: 0.45; pointer-events: none; }
+.real-tag {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(15, 157, 99, 0.22);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
 /* Post-term currency toggle — where the proceeds sit after the fund ends. */
 .ptc-toggle {
   display: flex;

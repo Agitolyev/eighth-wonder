@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 
 import { annualizedPct, toIso, shiftYears, shiftDays, toCsv, parseCsv, toJs }
   from "../scripts/update-devaluation.mjs";
+import { annualizedPct as cpiAnnualizedPct, shiftMonths, cpiMapFrom, toJs as inflToJs }
+  from "../scripts/update-inflation.mjs";
 import { parseUahPrice } from "../scripts/update-funds.mjs";
 import { ratesFromNbu } from "../scripts/update-fx.mjs";
 
@@ -53,6 +55,39 @@ test("devaluation CSV round-trips and the generated JS prefers the 3y window", (
   assert.match(js, /suggestedPct: 6\.74/);
   assert.match(js, /suggestedWindowYears: 3/);
   assert.match(js, /"1": 3\.1/);
+});
+
+/* ---------------- update-inflation ---------------- */
+
+test("CPI annualizedPct: the seeded 10-year window reproduces its CSV value", () => {
+  // CPI-U 238.343 (2014-06) → 314.175 (2024-06), annualized.
+  approx(cpiAnnualizedPct(314.175, 238.343, 10), 2.80, 0.005);
+});
+
+test("shiftMonths handles year boundaries", () => {
+  assert.equal(shiftMonths("2024-06", -12), "2023-06");
+  assert.equal(shiftMonths("2024-01", -1), "2023-12");
+  assert.equal(shiftMonths("2024-06", -121), "2014-05");
+});
+
+test("cpiMapFrom skips the M13 annual-average pseudo-period", () => {
+  const map = cpiMapFrom([
+    { year: "2024", period: "M06", value: "314.175" },
+    { year: "2023", period: "M13", value: "999" },
+    { year: "2023", period: "M06", value: "305.109" },
+  ]);
+  assert.equal(map.get("2024-06"), 314.175);
+  assert.equal(map.get("2023-06"), 305.109);
+  assert.equal(map.size, 2);
+});
+
+test("inflation JS prefers the 10y window as the suggestion", () => {
+  const js = inflToJs([
+    { window_years: 1, annual_pct: "2.97", cpi_now: 314.175, cpi_then: 305.109, then_month: "2023-06", as_of: "2024-06", source: "BLS" },
+    { window_years: 10, annual_pct: "2.80", cpi_now: 314.175, cpi_then: 238.343, then_month: "2014-06", as_of: "2024-06", source: "BLS" },
+  ]);
+  assert.match(js, /suggestedPct: 2\.8/);
+  assert.match(js, /suggestedWindowYears: 10/);
 });
 
 /* ---------------- update-funds ---------------- */

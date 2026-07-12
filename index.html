@@ -63,6 +63,19 @@
         </label>
         <p class="micro" id="devalNote"></p>
 
+        <div class="field real-field">
+          <label class="checkbox">
+            <input id="realTerms" type="checkbox" />
+            <span>Show in today&rsquo;s money <em>(subtract $/&euro; inflation)</em></span>
+          </label>
+          <div class="input-affix" id="inflWrap">
+            <input id="infl" type="text" inputmode="decimal" value="2.8" autocomplete="off"
+              aria-label="Hard-currency inflation, % per year" />
+            <span class="affix affix-right">% p.a.</span>
+          </div>
+          <p class="micro" id="inflNote"></p>
+        </div>
+
         <label class="field">
           <span>Initial investment</span>
           <div class="input-affix">
@@ -161,7 +174,8 @@
       </div>
 
       <div class="panel results">
-        <h2 class="section-title">3 · Result after <span id="horizonOut">30</span> years</h2>
+        <h2 class="section-title">3 · Result after <span id="horizonOut">30</span> years
+          <span id="realTag" class="real-tag" hidden>in today&rsquo;s money</span></h2>
 
         <p id="devalCallout" class="deval-callout is-hidden" role="note"></p>
 
@@ -301,9 +315,11 @@
                 exact rate you typed. Real payouts swing year to year —
                 occupancy, rent reviews, refinancing and outright down years
                 are all ignored.</li>
-              <li><strong>No fees, taxes or inflation.</strong> Management fees,
-                entry and exit costs, income and capital-gains tax, and
-                inflation eroding real purchasing power are not deducted.</li>
+              <li><strong>No fees or taxes.</strong> Management fees, entry and
+                exit costs, and income and capital-gains tax are not deducted.
+                Inflation is subtracted only when the &ldquo;today&rsquo;s
+                money&rdquo; toggle is on — and even then as one flat trailing
+                average, not a forecast.</li>
               <li><strong>Flat currency drift.</strong> Cross-currency figures
                 use one saved FX snapshot plus a single, steady UAH-devaluation
                 assumption. Real devaluation arrives in jumps, not straight
@@ -411,6 +427,7 @@
   <script src="assets/js/fx-rates.js"></script>
   <script src="assets/js/funds-live.js"></script>
   <script src="assets/js/devaluation.js"></script>
+  <script src="assets/js/inflation.js"></script>
   <script src="assets/js/engine.js"></script>
   <script src="assets/js/app.js"></script>
 </body>

@@ -1,0 +1,54 @@
+name: Update inflation
+
+# Refreshes the suggested hard-currency inflation figure daily from US CPI-U
+# history (BLS public API) and commits the change. scripts/update-inflation.mjs
+# computes the trailing 1/3/10-year annualized CPI drift, rewrites
+# assets/data/inflation.csv (source of truth) and regenerates
+# assets/js/inflation.js (what the page loads). The Pages deploy republishes
+# on its own daily schedule (07:00 UTC). CPI only changes monthly, so most
+# runs are no-ops — the daily cadence just keeps it in step with the other
+# data jobs.
+on:
+  schedule:
+    # 06:27 UTC daily — between the devaluation job (06:25) and funds (06:30).
+    - cron: "27 6 * * *"
+  workflow_dispatch:
+
+# Needed so the job can push the updated files back to the repo.
+permissions:
+  contents: write
+
+# Don't overlap with another run mid-push.
+concurrency:
+  group: update-inflation
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Compute trailing inflation from BLS CPI history
+        run: node scripts/update-inflation.mjs
+
+      - name: Commit updated figures
+        # Runs even if a window failed to fetch (that keeps the previous value
+        # and marks the job failed — same honesty contract as the other jobs).
+        if: always()
+        run: |
+          if [[ -z "$(git status --porcelain assets/data/inflation.csv assets/js/inflation.js)" ]]; then
+            echo "Inflation figures unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/inflation.csv assets/js/inflation.js
+          git commit -m "chore: update inflation figures ($(date -u +%Y-%m-%d))"
+          git push

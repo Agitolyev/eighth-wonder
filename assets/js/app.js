@@ -20,6 +20,10 @@
   // Trailing UAH/USD drift (NBU history) refreshed daily by
   // scripts/update-devaluation.mjs — the *suggested* devaluation assumption.
   var DEVAL = window.DEVAL || null;
+  // Trailing US CPI drift (BLS history) refreshed daily by
+  // scripts/update-inflation.mjs — the *suggested* hard-currency inflation
+  // for the today's-money view.
+  var INFL = window.INFL || null;
 
   var STORE_KEY = "eighth-wonder:v1";
 
@@ -34,6 +38,11 @@
     // Expected UAH devaluation vs hard currencies, % per year. Seeded from
     // the NBU trailing average (editable, persisted).
     devalPct: DEVAL && isFinite(DEVAL.suggestedPct) ? DEVAL.suggestedPct : 0,
+    // Today's-money view: deflate everything by hard-currency inflation
+    // (₴ display additionally by the devaluation drift). Off by default —
+    // nominal figures with the option, never a silent adjustment.
+    realTerms: false,
+    inflPct: INFL && isFinite(INFL.suggestedPct) ? INFL.suggestedPct : 2.5,
   };
 
   // Currency the proceeds sit in once a fund's term (or projection horizon)
@@ -62,12 +71,18 @@
   // Time-aware conversion factor from a setup's quote currency into the
   // display currency at year t: devaluation drift plus the post-term currency
   // rollover (the fund's indexation ends with the fund — after the term the
-  // proceeds' own currency decides their exposure). t=0 === static FX.
+  // proceeds' own currency decides their exposure), and — when the
+  // today's-money view is on — the hard-currency inflation deflator on top.
+  // t=0 === static FX.
   function factorFor(cfg, tYears) {
-    return Engine.rolloverFactorAt(
+    var f = Engine.rolloverFactorAt(
       cfg.quote, postCurOf(cfg), cfg.termYears, state.currencyCode,
       FX.uahPer, state.devalPct, tYears
     );
+    if (state.realTerms) {
+      f *= Engine.deflatorAt(state.currencyCode, state.inflPct, state.devalPct, tYears);
+    }
+    return f;
   }
   function symbolFor(code) {
     for (var i = 0; i < CURRENCIES.length; i++) {
@@ -112,6 +127,11 @@
     ptcBtns: document.querySelectorAll(".ptc-btn"),
     deval: $("deval"),
     devalNote: $("devalNote"),
+    realTerms: $("realTerms"),
+    infl: $("infl"),
+    inflNote: $("inflNote"),
+    realField: document.querySelector(".real-field"),
+    realTag: $("realTag"),
     propNote: $("propNote"),
     curBtns: document.querySelectorAll(".cur-btn"),
     fxNote: $("fxNote"),
@@ -193,6 +213,11 @@
     return Math.max(-95, Math.min(100, v));
   }
 
+  function clampInfl(v) {
+    if (!isFinite(v)) return 0;
+    return Math.max(-20, Math.min(100, v));
+  }
+
   // ---- Read inputs ----
   // The simulation runs in the PROPOSITION'S QUOTE CURRENCY — a 21% UAH rate
   // compounds hryvnias, a 9.5% USD rate compounds dollars. Money inputs come
@@ -255,6 +280,27 @@
     els.devalNote.textContent = base;
   }
 
+  // Provenance for the suggested inflation figure, same contract as the
+  // devaluation note: a checkable trailing average, never a forecast.
+  function renderInflNote() {
+    if (!els.inflNote) return;
+    var base = "Even $/€ figures are nominal — this deflates everything to " +
+      "today's purchasing power (₴ view also folds in the devaluation drift).";
+    if (INFL && isFinite(INFL.suggestedPct)) {
+      base += " Suggested " + INFL.suggestedPct + "%/yr = trailing " +
+        (INFL.suggestedWindowYears || "?") + "y US CPI drift (index " +
+        INFL.cpiThen + " in " + INFL.thenMonth + " → " + INFL.cpiNow +
+        ", updated " + (INFL.asOf || "unknown") + ").";
+    }
+    els.inflNote.textContent = base;
+  }
+
+  // Grey out the inflation input while the today's-money view is off.
+  function syncRealState() {
+    els.realField.classList.toggle("is-off", !state.realTerms);
+    if (els.realTag) els.realTag.hidden = !state.realTerms;
+  }
+
   /* -----------------------------------------------------------------------
    * Persistence — saved comparison options + the devaluation assumption
    * survive a refresh. Everything else is cheap to re-enter; these are not.
@@ -264,6 +310,8 @@
       localStorage.setItem(STORE_KEY, JSON.stringify({
         v: 1,
         devalPct: state.devalPct,
+        inflPct: state.inflPct,
+        realTerms: state.realTerms,
         comparisons: comparisons.map(function (c) {
           return {
             propId: c.propId, name: c.name, mode: c.mode, rate: c.rate,
@@ -283,6 +331,8 @@
     catch (e) { return; }
     if (!data || data.v !== 1) return;
     if (isFinite(data.devalPct)) state.devalPct = clampDeval(Number(data.devalPct));
+    if (isFinite(data.inflPct)) state.inflPct = clampInfl(Number(data.inflPct));
+    state.realTerms = data.realTerms === true;
     (Array.isArray(data.comparisons) ? data.comparisons : []).forEach(function (c) {
       if (!c || !c.baseUAH || !isFinite(c.rate) || !isFinite(c.years)) return;
       if (comparisons.length >= COMPARE_MAX) return;
@@ -1024,9 +1074,13 @@
     var converted = data.some(function (s) {
       return s.quote !== display && (s.quote === "UAH" || display === "UAH");
     });
+    var inflLine = state.realTerms
+      ? " All lines are additionally deflated by " + state.inflPct +
+        "%/yr hard-currency inflation — values are in today's money."
+      : "";
     if (!converted) {
-      node.textContent = "";
-      node.hidden = true;
+      node.textContent = inflLine.trim();
+      node.hidden = !inflLine;
       return;
     }
     node.hidden = false;
@@ -1048,7 +1102,7 @@
         "rate can end below a lower $/€ one. Hard-currency options are not " +
         "affected by the assumption.";
     }
-    node.textContent = text;
+    node.textContent = text + inflLine;
   }
 
   /* -----------------------------------------------------------------------
@@ -1349,6 +1403,10 @@
     loadStore();
     els.deval.value = state.devalPct;
     renderDevalNote();
+    els.infl.value = state.inflPct;
+    els.realTerms.checked = state.realTerms;
+    renderInflNote();
+    syncRealState();
 
     // Money fields feed the UAH source of truth as the user types.
     Object.keys(MONEY_KEYS).forEach(function (k) {
@@ -1364,6 +1422,22 @@
 
     els.deval.addEventListener("input", function () {
       state.devalPct = clampDeval(parseNum(els.deval.value));
+      render();
+      renderComparisons();
+      saveStore();
+    });
+
+    // Today's-money view: deflates every displayed figure, including the
+    // saved comparisons — one shared assumption, like devaluation.
+    els.realTerms.addEventListener("change", function () {
+      state.realTerms = els.realTerms.checked;
+      syncRealState();
+      render();
+      renderComparisons();
+      saveStore();
+    });
+    els.infl.addEventListener("input", function () {
+      state.inflPct = clampInfl(parseNum(els.infl.value));
       render();
       renderComparisons();
       saveStore();

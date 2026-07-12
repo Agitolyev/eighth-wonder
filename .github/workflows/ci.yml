@@ -28,4 +28,5 @@ jobs:
           node scripts/update-fx.mjs --regen
           node scripts/update-funds.mjs --regen
           node scripts/update-devaluation.mjs --regen
-          git diff --exit-code assets/js/fx-rates.js assets/js/funds-live.js assets/js/devaluation.js
+          node scripts/update-inflation.mjs --regen
+          git diff --exit-code assets/js/fx-rates.js assets/js/funds-live.js assets/js/devaluation.js assets/js/inflation.js

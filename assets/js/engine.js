@@ -248,10 +248,38 @@
       fxFactorAt(postCode, displayCode, uahPer0, devalPct, tYears);
   }
 
+  /* -----------------------------------------------------------------------
+   * Real-terms deflator — "show in today's money".
+   *
+   * Hard currencies melt too: a nominal $ amount t years out is worth less
+   * than the same amount today. Deflating by hard-currency inflation i:
+   *
+   *   display in $/€:  1 / (1+i)^t
+   *   display in ₴:    1 / ((1+i)^t · (1+d)^t)
+   *
+   * The ₴ deflator adds the devaluation drift because under the flat model a
+   * hryvnia price level tracks the hard price level times the FX drift. This
+   * makes REAL values display-currency-invariant: the same purchasing power
+   * is reported whether you view in $, € or ₴ (they differ only by today's
+   * static rate).
+   * --------------------------------------------------------------------- */
+  function deflatorAt(displayCode, inflPct, devalPct, tYears) {
+    var i = isFinite(inflPct) ? inflPct / 100 : 0;
+    if (i <= -1) i = -0.99;
+    var f = Math.pow(1 + i, tYears);
+    if (displayCode === "UAH") {
+      var d = isFinite(devalPct) ? devalPct / 100 : 0;
+      if (d <= -1) d = -0.99;
+      f *= Math.pow(1 + d, tYears);
+    }
+    return 1 / f;
+  }
+
   return {
     parseNum: parseNum,
     simulate: simulate,
     fxFactorAt: fxFactorAt,
     rolloverFactorAt: rolloverFactorAt,
+    deflatorAt: deflatorAt,
   };
 });

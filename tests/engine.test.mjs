@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { parseNum, simulate, fxFactorAt, rolloverFactorAt } = require("../assets/js/engine.js");
+const { parseNum, simulate, fxFactorAt, rolloverFactorAt, deflatorAt } = require("../assets/js/engine.js");
 
 function approx(actual, expected, tolerance = 1e-9) {
   assert.ok(
@@ -219,6 +219,30 @@ test("rollover $→₴ at term: a hard-currency fund's proceeds left in ₴ star
   // ...and viewed in UAH it's flat: the pot IS hryvnia now.
   approx(rolloverFactorAt("USD", "UAH", term, "UAH", UAH_PER, d, t),
     44.47 * Math.pow(1.1, term), 1e-9);
+});
+
+/* ---------------- deflatorAt ---------------- */
+
+test("deflator: hard-currency display divides by (1+i)^t; t=0 is 1", () => {
+  approx(deflatorAt("USD", 2.8, 6.74, 0), 1, 1e-15);
+  approx(deflatorAt("USD", 2.8, 6.74, 30), 1 / Math.pow(1.028, 30), 1e-12);
+  approx(deflatorAt("EUR", 2.8, 6.74, 10), 1 / Math.pow(1.028, 10), 1e-12);
+});
+
+test("deflator: ₴ display compounds inflation with the devaluation drift", () => {
+  approx(deflatorAt("UAH", 2.8, 6.74, 10),
+    1 / (Math.pow(1.028, 10) * Math.pow(1.0674, 10)), 1e-12);
+});
+
+test("real values are display-currency-invariant", () => {
+  // A quote-currency value converted+deflated into $ vs into ₴ must carry
+  // the same purchasing power — i.e. differ only by today's static rate.
+  const d = 6.74, i = 2.8, t = 17;
+  for (const quote of ["UAH", "USD"]) {
+    const realUsd = fxFactorAt(quote, "USD", UAH_PER, d, t) * deflatorAt("USD", i, d, t);
+    const realUah = fxFactorAt(quote, "UAH", UAH_PER, d, t) * deflatorAt("UAH", i, d, t);
+    approx(realUah / realUsd, 44.47, 1e-9);
+  }
 });
 
 test("rollover is continuous at the term boundary", () => {

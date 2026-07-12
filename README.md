@@ -65,6 +65,13 @@ refresh them (see below).
   5%, SMF loan's 10%) show a shaded band between the guaranteed outcome and
   the projected one, plus floor rows in the results — the promise and the
   pitch, never conflated.
+- **"Show in today's money."** Hard currencies melt too — a nominal $ figure
+  30 years out overstates its real worth. An optional toggle deflates every
+  displayed figure by an editable **hard-currency inflation % per year**
+  (₴ display additionally folds in the devaluation drift, which makes real
+  values identical across display currencies). The suggested default is the
+  trailing US CPI drift, auto-refreshed daily — an average, not a forecast.
+  Off by default: figures stay nominal unless you ask.
 - **Whole-unit reinvestment** — you can't buy a fraction of a fund unit (a ₴10
   REIT certificate, a ₴6,000 Energy certificate…), so payouts and top-ups are
   pooled and only buy whole units; anything left over waits as **uninvested
@@ -125,6 +132,12 @@ rates stay static. Value is assumed to sit in the fund's quote currency
 until the term, then in the post-term currency you pick (exchanged at the
 term date's drifted rate) until the end of the horizon.
 
+**Real terms.** With "show in today's money" on, displayed values are
+divided by `(1+i)^t` (hard-currency display) or `(1+i)^t·(1+d)^t` (₴
+display), where `i` is hard-currency inflation. Real values are
+display-currency-invariant: the same purchasing power is reported whether
+you view in $, € or ₴.
+
 ## Hosting on GitHub Pages
 
 The site is the repository root (plain static files), deployed by
@@ -161,6 +174,9 @@ scripts/update-funds.mjs       fetches official pages → rewrites the CSV + reg
 assets/js/devaluation.js       trailing UAH/USD drift the page loads (auto-generated)
 assets/data/devaluation.csv    devaluation windows, source of truth (updated daily)
 scripts/update-devaluation.mjs fetches NBU history → rewrites the CSV + regenerates the JS
+assets/js/inflation.js         trailing US CPI drift the page loads (auto-generated)
+assets/data/inflation.csv      inflation windows, source of truth (updated daily)
+scripts/update-inflation.mjs   fetches BLS CPI history → rewrites the CSV + regenerates the JS
 tests/                         unit tests (node --test) for the engine + script parsers
 ```
 
@@ -236,6 +252,24 @@ figure is ever fabricated.
 ```bash
 node scripts/update-devaluation.mjs           # fetch NBU history, rewrite CSV + JS
 node scripts/update-devaluation.mjs --regen   # regenerate the JS from the CSV (no network)
+```
+
+### Hard-currency inflation
+
+The "show in today's money" toggle needs a hard-currency inflation figure.
+Same honest-default approach: the **trailing** annualized US CPI-U drift over
+the last 1, 3 and 10 years, with the 10-year window as the suggested default
+(it smooths the 2021–23 spike, which would otherwise dominate a 30-year
+projection). Source of truth is `assets/data/inflation.csv` (each row carries
+the two CPI index values and months it was computed from), loaded via the
+generated `assets/js/inflation.js`. A daily Action
+([`.github/workflows/update-inflation.yml`](.github/workflows/update-inflation.yml),
+06:27 UTC) recomputes it from BLS history via `scripts/update-inflation.mjs`
+— same keep-previous-and-fail contract as the other jobs.
+
+```bash
+node scripts/update-inflation.mjs           # fetch BLS CPI history, rewrite CSV + JS
+node scripts/update-inflation.mjs --regen   # regenerate the JS from the CSV (no network)
 ```
 
 ### Per-fund figures
