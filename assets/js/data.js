@@ -209,6 +209,71 @@ window.PROPOSITIONS = [
     url: "https://invest.tvoekolo.com.ua/",
   },
   {
+    id: "smf-loan",
+    name: "Сімейні Молочні Ферми · Позика",
+    operator: "Сімейні Молочні Ферми (SMF)",
+    tagline: "Lend to a network of small family dairy farms — quarterly cash.",
+    rate: 21,
+    currency: "UAH",
+    payout: "quarterly",
+    distributes: true,
+    minInvestment: 50000,
+    termYears: null,
+    accent: "#38bdf8",
+    highlights: [
+      "~21% p.a. projected in UAH (10% guaranteed + ~11% premium)",
+      "Guaranteed 10% floor paid out quarterly in cash",
+      "A direct loan to a real dairy-farming business, not a fund",
+      "Entry from ₴50,000",
+    ],
+    note:
+      "SMF is a private network of ~160 small family dairy farms that raises " +
+      "capital directly from investors. The loan option pays a guaranteed 10% " +
+      "p.a. as quarterly cash — withdraw it (simple) or reinvest it (compound) — " +
+      "plus an 'investment premium' projected at ~11% p.a. Only the 10% is " +
+      "contractually guaranteed; the rest is a projection, so edit the rate down " +
+      "if you want the guaranteed-only view. This is a direct loan to a private " +
+      "business, not a regulated fund certificate — less liquid and less " +
+      "supervised than the REITs above, so returns are not guaranteed.",
+    dataAsOf: "2026-07-12",
+    source: "invest.smf.org.ua offer page + public reporting (ITC.ua, Mind.ua, AgroPortal)",
+    sourceUrl: "https://invest.smf.org.ua/en/investments-in-family-dairy-farms/",
+    url: "https://invest.smf.org.ua/",
+  },
+  {
+    id: "smf-equity",
+    name: "Сімейні Молочні Ферми · Частка",
+    operator: "Сімейні Молочні Ферми (SMF)",
+    tagline: "Buy a stake in the dairy business — dividends plus share growth.",
+    rate: 23,
+    currency: "UAH",
+    payout: "annual",
+    distributes: false,
+    minInvestment: 50000,
+    termYears: null,
+    accent: "#0284c7",
+    highlights: [
+      "~23% p.a. projected in UAH (~10% dividends + share-value growth)",
+      "Business stake projected to roughly double by end of 2029",
+      "Annual dividends — already paid in practice (₴1.16M distributed)",
+      "Entry from ₴50,000",
+    ],
+    note:
+      "The equity option makes you a part-owner of the SMF business: you get " +
+      "annual dividends (~10–12% p.a., and they have paid them in practice) and " +
+      "your stake is projected to grow — management targets roughly 2× by the " +
+      "end of 2029. This card models the total return as a compounding " +
+      "hold-to-exit (dividends reinvested + capital appreciation, ~23% p.a.), so " +
+      "the 'simple' column shows the same rate without yearly compounding. In " +
+      "reality the dividends are cash you could withdraw instead. These are " +
+      "aggressive projections for a private, illiquid equity stake — capital " +
+      "growth depends on the business and is not guaranteed.",
+    dataAsOf: "2026-07-12",
+    source: "invest.smf.org.ua offer page + public reporting (ITC.ua, Mind.ua, Minfin)",
+    sourceUrl: "https://invest.smf.org.ua/en/investments-in-family-dairy-farms/",
+    url: "https://invest.smf.org.ua/",
+  },
+  {
     id: "custom",
     name: "Custom",
     operator: "You",
