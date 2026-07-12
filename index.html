@@ -54,14 +54,18 @@
         </div>
         <p class="micro fx-note" id="fxNote"></p>
 
-        <label class="field">
-          <span>Expected UAH devaluation <em>(vs $/€, per year)</em></span>
-          <div class="input-affix">
-            <input id="deval" type="text" inputmode="decimal" value="0" autocomplete="off" />
+        <div class="field deval-field">
+          <label class="checkbox">
+            <input id="devalOn" type="checkbox" checked />
+            <span>Apply expected UAH devaluation <em>(vs $/&euro;)</em></span>
+          </label>
+          <div class="input-affix" id="devalWrap">
+            <input id="deval" type="text" inputmode="decimal" value="0" autocomplete="off"
+              aria-label="Expected UAH devaluation, % per year" />
             <span class="affix affix-right">% p.a.</span>
           </div>
-        </label>
-        <p class="micro" id="devalNote"></p>
+          <p class="micro" id="devalNote"></p>
+        </div>
 
         <div class="field real-field">
           <label class="checkbox">

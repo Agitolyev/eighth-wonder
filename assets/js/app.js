@@ -36,7 +36,10 @@
     currency: "$",
     baseUAH: { principal: 0, contribution: 0, step: 0 },
     // Expected UAH devaluation vs hard currencies, % per year. Seeded from
-    // the NBU trailing average (editable, persisted).
+    // the NBU trailing average (editable, persisted). The on/off switch keeps
+    // the rate remembered while disabled — off means "compare at frozen FX",
+    // not "forget my assumption".
+    devalOn: true,
     devalPct: DEVAL && isFinite(DEVAL.suggestedPct) ? DEVAL.suggestedPct : 0,
     // Today's-money view: deflate everything by hard-currency inflation
     // (₴ display additionally by the devaluation drift). Off by default —
@@ -61,6 +64,12 @@
   function convert(amount, fromCode, toCode) {
     return (amount || 0) * uahPer(fromCode) / uahPer(toCode);
   }
+  // The devaluation rate that's actually in force: 0 while switched off.
+  // Every consumer (conversion factors, deflator, callouts) reads this, so
+  // the toggle is honoured everywhere at once.
+  function effDevalPct() {
+    return state.devalOn ? state.devalPct : 0;
+  }
   // Resolve a 'UAH' | 'HARD' post-term choice to a concrete currency code:
   // hard means "stay in the fund's own hard currency" (or USD for a ₴ fund —
   // under the flat-drift model all hard currencies behave identically).
@@ -77,10 +86,10 @@
   function factorFor(cfg, tYears) {
     var f = Engine.rolloverFactorAt(
       cfg.quote, postCurOf(cfg), cfg.termYears, state.currencyCode,
-      FX.uahPer, state.devalPct, tYears
+      FX.uahPer, effDevalPct(), tYears
     );
     if (state.realTerms) {
-      f *= Engine.deflatorAt(state.currencyCode, state.inflPct, state.devalPct, tYears);
+      f *= Engine.deflatorAt(state.currencyCode, state.inflPct, effDevalPct(), tYears);
     }
     return f;
   }
@@ -125,8 +134,10 @@
     postTermField: $("postTermField"),
     postTermRate: $("postTermRate"),
     ptcBtns: document.querySelectorAll(".ptc-btn"),
+    devalOn: $("devalOn"),
     deval: $("deval"),
     devalNote: $("devalNote"),
+    devalField: document.querySelector(".deval-field"),
     realTerms: $("realTerms"),
     infl: $("infl"),
     inflNote: $("inflNote"),
@@ -295,6 +306,11 @@
     els.inflNote.textContent = base;
   }
 
+  // Grey out the devaluation input while the assumption is switched off.
+  function syncDevalState() {
+    if (els.devalField) els.devalField.classList.toggle("is-off", !state.devalOn);
+  }
+
   // Grey out the inflation input while the today's-money view is off.
   function syncRealState() {
     els.realField.classList.toggle("is-off", !state.realTerms);
@@ -309,6 +325,7 @@
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         v: 1,
+        devalOn: state.devalOn,
         devalPct: state.devalPct,
         inflPct: state.inflPct,
         realTerms: state.realTerms,
@@ -331,6 +348,7 @@
     catch (e) { return; }
     if (!data || data.v !== 1) return;
     if (isFinite(data.devalPct)) state.devalPct = clampDeval(Number(data.devalPct));
+    state.devalOn = data.devalOn !== false; // default on for stores predating the toggle
     if (isFinite(data.inflPct)) state.inflPct = clampInfl(Number(data.inflPct));
     state.realTerms = data.realTerms === true;
     (Array.isArray(data.comparisons) ? data.comparisons : []).forEach(function (c) {
@@ -460,7 +478,7 @@
     if (!node) return;
     var quote = input.quote;
     var display = state.currencyCode;
-    var d = state.devalPct;
+    var d = effDevalPct();
     var p = currentProp();
     var name = p.name || "This option";
 
@@ -515,10 +533,11 @@
     } else if (d === 0) {
       tone = "is-neutral";
       text = "Converted " + quote + " → " + display + " at a frozen exchange " +
-        "rate: the devaluation assumption is set to 0%/yr, which treats ₴ and " +
-        "hard-currency returns as directly comparable. History hasn't been " +
-        "kind to that assumption — consider the suggested trailing figure in " +
-        "the settings.";
+        "rate: the devaluation assumption is " +
+        (state.devalOn ? "set to 0%/yr" : "switched off") + ", which treats ₴ " +
+        "and hard-currency returns as directly comparable. History hasn't " +
+        "been kind to that assumption — consider re-enabling the suggested " +
+        "trailing figure in the settings.";
     } else if (quote === "UAH") {
       tone = "is-eroding";
       text = "Devaluation applied: " + name + "'s " + input.rate + "% is " +
@@ -1065,7 +1084,7 @@
     var node = els.compareDevalNote;
     if (!node) return;
     var display = state.currencyCode;
-    var d = state.devalPct;
+    var d = effDevalPct();
     var uahQuoted = [], hardQuoted = [];
     data.forEach(function (s) {
       (s.quote === "UAH" ? uahQuoted : hardQuoted).push(s);
@@ -1402,7 +1421,9 @@
     // assumption. Must happen before the first render.
     loadStore();
     els.deval.value = state.devalPct;
+    els.devalOn.checked = state.devalOn;
     renderDevalNote();
+    syncDevalState();
     els.infl.value = state.inflPct;
     els.realTerms.checked = state.realTerms;
     renderInflNote();
@@ -1422,6 +1443,13 @@
 
     els.deval.addEventListener("input", function () {
       state.devalPct = clampDeval(parseNum(els.deval.value));
+      render();
+      renderComparisons();
+      saveStore();
+    });
+    els.devalOn.addEventListener("change", function () {
+      state.devalOn = els.devalOn.checked;
+      syncDevalState();
       render();
       renderComparisons();
       saveStore();

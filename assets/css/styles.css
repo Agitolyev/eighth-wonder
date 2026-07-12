@@ -388,6 +388,10 @@ input[type="range"] {
 .term-warning.is-hidden { display: none; }
 .field.is-hidden { display: none; }
 
+/* Devaluation control — the rate stays remembered while switched off. */
+.deval-field .checkbox { margin-bottom: 0.55rem; }
+.deval-field.is-off #devalWrap { opacity: 0.45; pointer-events: none; }
+
 /* Today's-money (real terms) control. */
 .real-field .checkbox { margin-bottom: 0.55rem; }
 .real-field.is-off #inflWrap { opacity: 0.45; pointer-events: none; }

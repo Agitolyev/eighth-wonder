@@ -45,7 +45,10 @@ refresh them (see below).
   devaluation % per year** on top of the FX snapshot, so high-UAH-rate offers
   no longer look like free money next to hard-currency ones. The suggested
   default is the *actual trailing NBU drift* (see below) — a rear-view
-  average, clearly labelled, never a forecast. And it never happens
+  average, clearly labelled, never a forecast. A checkbox switches the
+  assumption off entirely (frozen-FX view) while remembering your rate — and
+  the results callout then warns that ₴ and hard-currency returns are being
+  treated as directly comparable. And it never happens
   silently: whenever results cross between a fund's quote currency and the
   display currency, a callout in the results panel says exactly what's being
   applied and why (eroding a ₴ rate shown in $/€, boosting a $/€ rate shown
