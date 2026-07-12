@@ -45,7 +45,12 @@ refresh them (see below).
   devaluation % per year** on top of the FX snapshot, so high-UAH-rate offers
   no longer look like free money next to hard-currency ones. The suggested
   default is the *actual trailing NBU drift* (see below) — a rear-view
-  average, clearly labelled, never a forecast.
+  average, clearly labelled, never a forecast. And it never happens
+  silently: whenever results cross between a fund's quote currency and the
+  display currency, a callout in the results panel says exactly what's being
+  applied and why (eroding a ₴ rate shown in $/€, boosting a $/€ rate shown
+  in ₴, or neutral for hard↔hard), and the comparison section explains which
+  lines the assumption converts.
 - **Fixed terms are respected.** Past a fund's term (or, for open-ended
   offers like SMF, past the horizon its projection is based on) the model
   liquidates and drops to an editable post-term reinvestment rate, with a

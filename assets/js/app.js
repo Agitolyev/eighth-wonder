@@ -87,6 +87,8 @@
     yearsLabel: $("yearsLabel"),
     horizonOut: $("horizonOut"),
     termWarning: $("termWarning"),
+    devalCallout: $("devalCallout"),
+    compareDevalNote: $("compareDevalNote"),
     postTermField: $("postTermField"),
     postTermRate: $("postTermRate"),
     deval: $("deval"),
@@ -307,6 +309,7 @@
     els.horizonOut.textContent = input.years;
     updateTermWarning(input);
     updateScenarioLabels(input);
+    updateDevalCallout(input);
 
     // Re-express the quote-currency simulation in the display currency, with
     // the devaluation drift applied year by year.
@@ -371,6 +374,64 @@
       for (var k in src) target[k] = src[k];
     }
     return target;
+  }
+
+  /* -----------------------------------------------------------------------
+   * Devaluation callout — the conversion between a fund's quote currency and
+   * the display currency is the single most decision-relevant thing this
+   * tool does, so it is never allowed to happen silently. Whenever the two
+   * differ, the results panel states WHAT is being applied and WHY.
+   * --------------------------------------------------------------------- */
+  function updateDevalCallout(input) {
+    var node = els.devalCallout;
+    if (!node) return;
+    var quote = input.quote;
+    var display = state.currencyCode;
+    var d = state.devalPct;
+    var p = currentProp();
+    var name = p.name || "This option";
+
+    // Same currency on both sides: nothing is converted, nothing to explain.
+    if (quote === display) {
+      node.classList.add("is-hidden");
+      node.className = "deval-callout is-hidden";
+      node.textContent = "";
+      return;
+    }
+
+    var crossesUah = quote === "UAH" || display === "UAH";
+    var text, tone;
+    if (!crossesUah) {
+      // USD ↔ EUR: the drift cancels out by design.
+      tone = "is-neutral";
+      text = "No devaluation applied: " + name + "'s rate is quoted in " +
+        symbolFor(quote) + " " + quote + " and shown in " + symbolFor(display) +
+        " " + display + " — both hard currencies, so only the static FX " +
+        "snapshot is used.";
+    } else if (d === 0) {
+      tone = "is-neutral";
+      text = "Converted " + quote + " → " + display + " at a frozen exchange " +
+        "rate: the devaluation assumption is set to 0%/yr, which treats ₴ and " +
+        "hard-currency returns as directly comparable. History hasn't been " +
+        "kind to that assumption — consider the suggested trailing figure in " +
+        "the settings.";
+    } else if (quote === "UAH") {
+      tone = "is-eroding";
+      text = "Devaluation applied: " + name + "'s " + input.rate + "% is " +
+        "quoted in ₴ UAH, but you're viewing in " + symbolFor(display) + " " +
+        display + ". The ₴ results are converted assuming UAH loses " + d +
+        "%/yr, so these lines grow slower than the ₴ rate suggests — that's " +
+        "the devaluation cost a hryvnia rate carries, made visible.";
+    } else {
+      tone = "is-boosting";
+      text = "Devaluation applied in this fund's favour: " + name + "'s " +
+        input.rate + "% is quoted in " + symbolFor(quote) + " " + quote +
+        " (devaluation-protected), and you're viewing in ₴ UAH — so the ₴ " +
+        "figures grow ~" + d + "%/yr on top of the " + quote + " rate as the " +
+        "hryvnia weakens.";
+    }
+    node.className = "deval-callout " + tone;
+    node.textContent = text;
   }
 
   // For funds with no cash payouts there is nothing to withdraw — the
@@ -837,14 +898,22 @@
     // Chips (also the chart legend) + summary table. The quote-currency badge
     // matters: a 21% ₴ line and a 9.5% $ line are only comparable through the
     // devaluation assumption, and the badge keeps that visible.
+    function curTag(quote) {
+      var curClass = quote === "UAH" ? " is-uah" : "";
+      var tip = quote === "UAH"
+        ? "Rate quoted in ₴ UAH — the devaluation assumption applies when shown in $/€."
+        : "Rate quoted in " + quote + " (devaluation-protected) — not eroded by UAH devaluation.";
+      return '<span class="cur-tag' + curClass + '" title="' + escapeHtml(tip) + '">' +
+        escapeHtml(quote) + "</span>";
+    }
+
     els.compareList.innerHTML = data.map(function (d) {
       var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
-      var curClass = d.quote === "UAH" ? " is-uah" : "";
       return '<li class="compare-chip">' +
         '<span class="compare-swatch" style="background:' + d.color + '"></span>' +
         '<span class="chip-text">' +
           '<span class="name">' + escapeHtml(d.label) +
-            ' <span class="cur-tag' + curClass + '">' + escapeHtml(d.quote) + "</span>" +
+            " " + curTag(d.quote) +
             ' <span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></span>" +
           '<span class="detail">' + escapeHtml(d.chipDetail) + "</span>" +
         "</span>" +
@@ -856,18 +925,61 @@
 
     els.compareTableBody.innerHTML = data.map(function (d) {
       var modeClass = d.modeText === "Withdraw" ? " is-withdraw" : "";
-      var curClass = d.quote === "UAH" ? " is-uah" : "";
       return "<tr>" +
         '<td><span class="opt-name">' + escapeHtml(d.name) + "</span>" +
           '<span class="opt-detail">' + escapeHtml(d.moneyFreq) + "</span></td>" +
         '<td><span class="mode-tag' + modeClass + '">' + escapeHtml(d.modeText) + "</span></td>" +
-        "<td>" + d.rate + '% <span class="cur-tag' + curClass + '">' + escapeHtml(d.quote) + "</span></td>" +
+        "<td>" + d.rate + "% " + curTag(d.quote) + "</td>" +
         "<td>" + d.years + (d.years === 1 ? " yr" : " yrs") + "</td>" +
         "<td>" + fmt(d.net) + "</td>" +
         "</tr>";
     }).join("");
 
+    updateCompareDevalNote(data);
     drawComparisonChart(data);
+  }
+
+  // Spell out how the saved options land on one axis: which ones the
+  // devaluation assumption converts (and in which direction), and which it
+  // leaves alone — so a ₴ line ending below a $ line is never a mystery.
+  function updateCompareDevalNote(data) {
+    var node = els.compareDevalNote;
+    if (!node) return;
+    var display = state.currencyCode;
+    var d = state.devalPct;
+    var uahQuoted = [], hardQuoted = [];
+    data.forEach(function (s) {
+      (s.quote === "UAH" ? uahQuoted : hardQuoted).push(s);
+    });
+
+    var converted = data.some(function (s) {
+      return s.quote !== display && (s.quote === "UAH" || display === "UAH");
+    });
+    if (!converted) {
+      node.textContent = "";
+      node.hidden = true;
+      return;
+    }
+    node.hidden = false;
+    var text;
+    if (d === 0) {
+      text = "All lines share one " + symbolFor(display) + " " + display +
+        " axis, converted at a frozen exchange rate (devaluation set to 0%/yr) — " +
+        "₴ and hard-currency rates are being treated as directly comparable.";
+    } else if (display === "UAH") {
+      text = "All lines share one ₴ UAH axis. $/€-quoted options are converted " +
+        "assuming UAH loses " + d + "%/yr, which lifts their ₴ value over time; " +
+        "₴-quoted options are shown as-is.";
+    } else {
+      text = "All lines share one " + symbolFor(display) + " " + display +
+        " axis. ₴-quoted options" +
+        (uahQuoted.length ? " (" + uahQuoted.map(function (s) { return s.name; })
+          .filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ") + ")" : "") +
+        " are converted assuming UAH loses " + d + "%/yr — that's why a high ₴ " +
+        "rate can end below a lower $/€ one. Hard-currency options are not " +
+        "affected by the assumption.";
+    }
+    node.textContent = text;
   }
 
   /* -----------------------------------------------------------------------

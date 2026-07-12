@@ -452,6 +452,37 @@ input[type="range"] {
 :root[data-theme="dark"] .floor-row dd { color: #f0b657; }
 
 /* ---------- Results ---------- */
+/* Currency-conversion callout: whenever results cross between a fund's quote
+ * currency and the display currency, this states what's applied and why —
+ * eroding (₴ rate shown in $/€), boosting ($/€ rate shown in ₴), or neutral. */
+.deval-callout {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin: 0 0 1rem;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-soft);
+  color: var(--muted);
+}
+.deval-callout.is-hidden { display: none; }
+.deval-callout.is-eroding {
+  color: #92600a;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+:root[data-theme="dark"] .deval-callout.is-eroding {
+  color: #f0b657;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.deval-callout.is-boosting {
+  color: #0b6b45;
+  background: var(--accent-soft);
+  border-color: rgba(15, 157, 99, 0.32);
+}
+:root[data-theme="dark"] .deval-callout.is-boosting { color: #4cd6a0; }
+
 .compare {
   display: grid;
   grid-template-columns: 1fr 1fr;
