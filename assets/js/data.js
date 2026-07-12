@@ -11,8 +11,16 @@
  *  name          display name
  *  operator      fund manager
  *  tagline       one-line pitch
- *  rate          projected annual return, % (nominal)
- *  currency      currency the return is quoted in ('USD' | 'UAH')
+ *  rate          projected annual return, %. For distributing funds this is
+ *                read as a cash yield (rate/frequency paid per period); for
+ *                non-distributing funds as an effective annual growth rate.
+ *  guaranteedRate contractually guaranteed floor, % p.a. (optional). Shown as
+ *                a shaded floor band on the chart and floor rows in the
+ *                results, so the guaranteed and projected outcomes are never
+ *                conflated. Omit when nothing is guaranteed.
+ *  currency      currency the return is quoted in ('USD' | 'UAH' | 'EUR').
+ *                The simulation runs in this currency; displaying in another
+ *                applies the FX snapshot plus the UAH-devaluation assumption.
  *  payout        how returns reach the investor:
  *                  'monthly'   -> distributes cash monthly (can withdraw or reinvest)
  *                  'quarterly' -> distributes cash quarterly
@@ -26,7 +34,17 @@
  *                Set this when the entry ticket is several units but you can
  *                subsequently top up one unit at a time (e.g. Varto). When
  *                omitted, the entry ticket is assumed to be one unit.
- *  termYears     fund lifetime in years (null = open-ended)
+ *  unitized      set to false for offers that are NOT sold in certificates
+ *                (e.g. a direct loan): whole-unit reinvestment then defaults
+ *                to OFF instead of misusing the entry minimum as a unit size,
+ *                which would silently crush the compounding leg.
+ *  termYears     fund lifetime in years (null = open-ended). Beyond it the
+ *                model liquidates and drops to the editable post-term rate —
+ *                it never silently extrapolates the fund's rate past its term.
+ *  projectionYears how far out the *projection itself* has any basis, for
+ *                open-ended offers whose rate is tied to a dated business
+ *                plan (e.g. SMF's "2× by end of 2029"). Treated like a term
+ *                by the model: past it, the rate has no source to stand on.
  *  accent        theme colour for the card
  *  highlights    short bullet facts
  *  note          honesty / risk caveat
@@ -91,7 +109,7 @@ window.PROPOSITIONS = [
     name: "Inzhur Energy",
     operator: "ІНЖУР",
     tagline: "Building maneuvering power plants for Ukraine's grid.",
-    rate: 15,
+    rate: 11.8,
     currency: "USD",
     payout: "annual",
     distributes: false,
@@ -99,7 +117,7 @@ window.PROPOSITIONS = [
     termYears: 5,
     accent: "#f59e0b",
     highlights: [
-      "~15% p.a. projected in USD (≈75% over 5 years, simple)",
+      "≈75% over the 5-year term projected in USD (~11.8% p.a. compounded)",
       "No dividends — value accrues via annual revaluation",
       "Certificate from ₴6,000",
       "5-year fund, first 34 MW plant online 2026",
@@ -107,9 +125,12 @@ window.PROPOSITIONS = [
     note:
       "Inzhur Energy pays no cash distributions — your certificate is " +
       "re-valued once a year, so returns compound automatically inside the " +
-      "fund until you exit. The 'simple' column below shows what the same " +
-      "rate would earn without that yearly compounding, for comparison.",
-    dataAsOf: "2026-07-10",
+      "fund until you exit. The offer is marketed as ~15% p.a. / ≈75% over " +
+      "5 years — i.e. 15% × 5 in SIMPLE terms. Since this model compounds " +
+      "the rate (as the fund itself does), it uses the compounding-equivalent " +
+      "~11.8% p.a., which reproduces the same ≈75% total; feeding 15% into a " +
+      "compounding model would double-count and show ≈101% instead.",
+    dataAsOf: "2026-07-12",
     source: "inzhur.reit offer page + public reporting (Forbes.ua, dev.ua, Minfin)",
     sourceUrl: "https://www.inzhur.reit/offer/inzhur-energy",
     url: "https://www.inzhur.reit/offer/inzhur-energy",
@@ -120,6 +141,7 @@ window.PROPOSITIONS = [
     operator: "Varto (КУА «Портофін»)",
     tagline: "Co-own operating wind turbines in the Carpathians.",
     rate: 14.29,
+    guaranteedRate: 5,
     currency: "EUR",
     payout: "quarterly",
     distributes: true,
@@ -214,11 +236,16 @@ window.PROPOSITIONS = [
     operator: "Сімейні Молочні Ферми (SMF)",
     tagline: "Lend to a network of small family dairy farms — quarterly cash.",
     rate: 21,
+    guaranteedRate: 10,
     currency: "UAH",
     payout: "quarterly",
     distributes: true,
     minInvestment: 50000,
+    unitized: false,
     termYears: null,
+    // The ~11% "investment premium" above the guaranteed 10% is tied to the
+    // business plan running to ~2029 — beyond that the 21% has no source.
+    projectionYears: 4,
     accent: "#38bdf8",
     highlights: [
       "~21% p.a. projected in UAH (10% guaranteed + ~11% premium)",
@@ -234,7 +261,10 @@ window.PROPOSITIONS = [
       "contractually guaranteed; the rest is a projection, so edit the rate down " +
       "if you want the guaranteed-only view. This is a direct loan to a private " +
       "business, not a regulated fund certificate — less liquid and less " +
-      "supervised than the REITs above, so returns are not guaranteed.",
+      "supervised than the REITs above, so returns are not guaranteed. Whether " +
+      "interest can be re-lent in small increments (or only in new ₴50,000 " +
+      "tranches) isn't public, so reinvestment is modelled fraction-friendly by " +
+      "default — tick whole-units with your own step to model minimum tranches.",
     dataAsOf: "2026-07-12",
     source: "invest.smf.org.ua offer page + public reporting (ITC.ua, Mind.ua, AgroPortal)",
     sourceUrl: "https://invest.smf.org.ua/en/investments-in-family-dairy-farms/",
@@ -250,7 +280,11 @@ window.PROPOSITIONS = [
     payout: "annual",
     distributes: false,
     minInvestment: 50000,
+    unitized: false,
     termYears: null,
+    // "Roughly 2× by the end of 2029" is the entire basis for the ~23% —
+    // there is no projection at all past that date.
+    projectionYears: 4,
     accent: "#0284c7",
     highlights: [
       "~23% p.a. projected in UAH (~10% dividends + share-value growth)",
