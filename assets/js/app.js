@@ -10,7 +10,6 @@
   var Engine = window.EighthWonderEngine;
   var parseNum = Engine.parseNum;
   var simulate = Engine.simulate;
-  var fxFactorAt = Engine.fxFactorAt;
 
   var PROPS = window.PROPOSITIONS || [];
   var CURRENCIES = window.CURRENCIES || [{ code: "USD", symbol: "$" }, { code: "UAH", symbol: "₴" }];
@@ -37,6 +36,13 @@
     devalPct: DEVAL && isFinite(DEVAL.suggestedPct) ? DEVAL.suggestedPct : 0,
   };
 
+  // Currency the proceeds sit in once a fund's term (or projection horizon)
+  // ends: 'UAH' or 'HARD'. Defaults to the fund's own quote currency on
+  // selection — the honest baseline is "you don't act, the money stays where
+  // it lands" — and is user-flippable because that choice, not the fund's
+  // old indexation, drives post-term devaluation exposure.
+  var postTermCur = "HARD";
+
   // ---- Currency / FX ----
   function uahPer(code) {
     var r = FX.uahPer && FX.uahPer[code];
@@ -46,10 +52,22 @@
   function convert(amount, fromCode, toCode) {
     return (amount || 0) * uahPer(fromCode) / uahPer(toCode);
   }
-  // Time-aware conversion factor from a fund's quote currency into the display
-  // currency at year t, under the devaluation assumption. t=0 === static FX.
-  function displayFactor(quoteCode, tYears) {
-    return fxFactorAt(quoteCode, state.currencyCode, FX.uahPer, state.devalPct, tYears);
+  // Resolve a 'UAH' | 'HARD' post-term choice to a concrete currency code:
+  // hard means "stay in the fund's own hard currency" (or USD for a ₴ fund —
+  // under the flat-drift model all hard currencies behave identically).
+  function postCurOf(cfg) {
+    if (cfg.postTermCur === "UAH") return "UAH";
+    return cfg.quote !== "UAH" ? cfg.quote : "USD";
+  }
+  // Time-aware conversion factor from a setup's quote currency into the
+  // display currency at year t: devaluation drift plus the post-term currency
+  // rollover (the fund's indexation ends with the fund — after the term the
+  // proceeds' own currency decides their exposure). t=0 === static FX.
+  function factorFor(cfg, tYears) {
+    return Engine.rolloverFactorAt(
+      cfg.quote, postCurOf(cfg), cfg.termYears, state.currencyCode,
+      FX.uahPer, state.devalPct, tYears
+    );
   }
   function symbolFor(code) {
     for (var i = 0; i < CURRENCIES.length; i++) {
@@ -91,6 +109,7 @@
     compareDevalNote: $("compareDevalNote"),
     postTermField: $("postTermField"),
     postTermRate: $("postTermRate"),
+    ptcBtns: document.querySelectorAll(".ptc-btn"),
     deval: $("deval"),
     devalNote: $("devalNote"),
     propNote: $("propNote"),
@@ -179,7 +198,7 @@
   // compounds hryvnias, a 9.5% USD rate compounds dollars. Money inputs come
   // from the UAH source of truth converted at today's FX (t=0); the yearly
   // results are then re-expressed in the display currency with the
-  // devaluation drift applied (see displayFactor).
+  // devaluation drift and post-term rollover applied (see factorFor).
   function readInput() {
     var p = currentProp();
     var quote = p.currency || state.currencyCode;
@@ -195,6 +214,7 @@
       distributes: p.distributes !== false,
       termYears: effectiveTerm(p),
       postTermRate: Math.max(0, parseNum(els.postTermRate.value)),
+      postTermCur: postTermCur,
       guaranteedRate: typeof p.guaranteedRate === "number" ? p.guaranteedRate : null,
     };
   }
@@ -249,7 +269,8 @@
             propId: c.propId, name: c.name, mode: c.mode, rate: c.rate,
             frequency: c.frequency, years: c.years, wholeUnits: c.wholeUnits,
             distributes: c.distributes, quote: c.quote, termYears: c.termYears,
-            postTermRate: c.postTermRate, baseUAH: c.baseUAH,
+            postTermRate: c.postTermRate, postTermCur: c.postTermCur,
+            baseUAH: c.baseUAH,
           };
         }),
       }));
@@ -277,6 +298,8 @@
         quote: String(c.quote || "USD"),
         termYears: isFinite(c.termYears) && c.termYears > 0 ? Number(c.termYears) : null,
         postTermRate: isFinite(c.postTermRate) ? Math.max(0, Number(c.postTermRate)) : 0,
+        postTermCur: c.postTermCur === "UAH" ||
+          (c.postTermCur == null && c.quote === "UAH") ? "UAH" : "HARD",
         baseUAH: {
           principal: Math.max(0, Number(c.baseUAH.principal) || 0),
           contribution: Math.max(0, Number(c.baseUAH.contribution) || 0),
@@ -312,9 +335,9 @@
     updateDevalCallout(input);
 
     // Re-express the quote-currency simulation in the display currency, with
-    // the devaluation drift applied year by year.
+    // the devaluation drift (and post-term currency rollover) year by year.
     var rows = r.rows.map(function (d, i) {
-      var f = displayFactor(input.quote, d.year);
+      var f = factorFor(input, d.year);
       return {
         year: d.year,
         contributed: d.contributed * f,
@@ -323,7 +346,7 @@
         floor: floor ? floor.rows[i].compound * f : null,
       };
     });
-    var fT = displayFactor(input.quote, input.years);
+    var fT = factorFor(input, input.years);
 
     els.s_invested.textContent = fmt(r.contributed * fT);
     els.s_income.textContent = fmt(r.incomeWithdrawn * fT);
@@ -391,11 +414,37 @@
     var p = currentProp();
     var name = p.name || "This option";
 
-    // Same currency on both sides: nothing is converted, nothing to explain.
-    if (quote === display) {
-      node.classList.add("is-hidden");
+    // Does the post-term rollover change the currency the money sits in?
+    var eff = input.termYears;
+    var postCode = postCurOf(input);
+    var rolls = eff != null && input.years > eff && postCode !== quote && d !== 0;
+
+    // Same currency on both sides and no rollover: nothing is converted,
+    // nothing to explain.
+    if (quote === display && !rolls) {
       node.className = "deval-callout is-hidden";
       node.textContent = "";
+      return;
+    }
+
+    // Quote == display, but the proceeds change currency at the term — the
+    // devaluation story starts (or stops) mid-chart, which needs saying.
+    if (quote === display) {
+      if (postCode === "UAH") {
+        node.className = "deval-callout is-eroding";
+        node.textContent = "Devaluation applies from the term on: until year " +
+          eff + " results are in " + name + "'s own " + symbolFor(quote) + " " +
+          quote + " terms, but after the fund ends the proceeds are assumed to " +
+          "sit in ₴ — from there the assumption erodes them by " + d + "%/yr. " +
+          "Flip the post-term currency in the settings to model exchanging " +
+          "into hard currency instead.";
+      } else {
+        node.className = "deval-callout is-boosting";
+        node.textContent = "Devaluation applies only until the term here: " +
+          name + "'s results are ₴ until year " + eff + ", when the proceeds " +
+          "are assumed exchanged into hard currency — shielded from the " +
+          "assumption from there on.";
+      }
       return;
     }
 
@@ -408,6 +457,11 @@
         symbolFor(quote) + " " + quote + " and shown in " + symbolFor(display) +
         " " + display + " — both hard currencies, so only the static FX " +
         "snapshot is used.";
+      if (rolls && postCode === "UAH") {
+        tone = "is-eroding";
+        text += " Except past the term: from year " + eff + " the proceeds " +
+          "are assumed to sit in ₴, and the assumption erodes them from there.";
+      }
     } else if (d === 0) {
       tone = "is-neutral";
       text = "Converted " + quote + " → " + display + " at a frozen exchange " +
@@ -422,6 +476,14 @@
         display + ". The ₴ results are converted assuming UAH loses " + d +
         "%/yr, so these lines grow slower than the ₴ rate suggests — that's " +
         "the devaluation cost a hryvnia rate carries, made visible.";
+      if (rolls) {
+        text += " From year " + eff + " the proceeds are assumed exchanged " +
+          "into hard currency, so the erosion stops there.";
+      } else if (eff != null && input.years > eff && d !== 0) {
+        text += " After the term the proceeds are assumed to stay in ₴, so " +
+          "the erosion continues — flip the post-term currency in the " +
+          "settings to model exchanging into $/€.";
+      }
     } else {
       tone = "is-boosting";
       text = "Devaluation applied in this fund's favour: " + name + "'s " +
@@ -429,6 +491,11 @@
         " (devaluation-protected), and you're viewing in ₴ UAH — so the ₴ " +
         "figures grow ~" + d + "%/yr on top of the " + quote + " rate as the " +
         "hryvnia weakens.";
+      if (rolls && postCode === "UAH") {
+        text += " That protection ends with the fund: from year " + eff +
+          " the proceeds are assumed to sit in ₴ and only earn the post-term " +
+          "rate.";
+      }
     }
     node.className = "deval-callout " + tone;
     node.textContent = text;
@@ -749,7 +816,8 @@
     return [
       entry.propId, entry.mode, entry.rate, entry.frequency, entry.years,
       entry.wholeUnits ? 1 : 0, entry.distributes ? 1 : 0,
-      entry.quote, entry.termYears == null ? "" : entry.termYears, entry.postTermRate,
+      entry.quote, entry.termYears == null ? "" : entry.termYears,
+      entry.postTermRate, entry.postTermCur,
       Math.round(entry.baseUAH.principal), Math.round(entry.baseUAH.contribution),
       Math.round(entry.baseUAH.step),
     ].join("|");
@@ -771,6 +839,7 @@
       quote: input.quote,
       termYears: input.termYears,
       postTermRate: input.postTermRate,
+      postTermCur: input.postTermCur,
       baseUAH: {
         principal: state.baseUAH.principal,
         contribution: state.baseUAH.contribution,
@@ -867,7 +936,7 @@
       // One line per entry: the chosen trajectory only.
       var seriesKey = withdraw ? "simpleNet" : "compound";
       var rows = r.rows.map(function (d) {
-        return { year: d.year, value: d[seriesKey] * displayFactor(c.quote, d.year) };
+        return { year: d.year, value: d[seriesKey] * factorFor(c, d.year) };
       });
       return {
         id: c.id,
@@ -1201,6 +1270,10 @@
     refreshMoneyFields();
     syncStepState();
 
+    // Default the post-term currency to where the money would actually land
+    // if you did nothing: the fund's own quote currency.
+    setPostTermCur(p.currency === "UAH" ? "UAH" : "HARD");
+
     // Non-distributing funds have no cash payouts, so a "Withdraw" line for
     // them is a fiction — don't let one into the comparison.
     var distributes = p.distributes !== false;
@@ -1250,6 +1323,13 @@
     els.stepField.classList.toggle("is-off", !els.wholeUnits.checked);
   }
 
+  function setPostTermCur(value) {
+    postTermCur = value === "UAH" ? "UAH" : "HARD";
+    els.ptcBtns.forEach(function (b) {
+      b.classList.toggle("is-active", b.getAttribute("data-ptc") === postTermCur);
+    });
+  }
+
   /* -----------------------------------------------------------------------
    * Wire up events
    * --------------------------------------------------------------------- */
@@ -1292,6 +1372,16 @@
     els.wholeUnits.addEventListener("change", function () {
       syncStepState();
       render();
+    });
+
+    // Post-term currency: where the proceeds sit once the fund is gone.
+    els.ptcBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-ptc");
+        if (!v || v === postTermCur) return;
+        setPostTermCur(v);
+        render();
+      });
     });
 
     // Chart hover: highlight the nearest data point and show its numbers.

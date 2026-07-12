@@ -55,7 +55,12 @@ refresh them (see below).
   offers like SMF, past the horizon its projection is based on) the model
   liquidates and drops to an editable post-term reinvestment rate, with a
   "term ends" marker on the chart — it never silently extrapolates a rate
-  beyond what it stands on.
+  beyond what it stands on. And because **a fund's currency indexation dies
+  with the fund**, you also choose where the proceeds sit afterwards — ₴ or
+  hard currency (defaulting to the fund's own quote currency). Proceeds left
+  in ₴ keep eroding under the devaluation assumption even if the fund itself
+  was USD-indexed; proceeds exchanged into $/€ are shielded from the term
+  date on. The exchange is modelled at the term date's drifted rate.
 - **Guaranteed floor vs projection.** Funds with a contractual floor (Varto's
   5%, SMF loan's 10%) show a shaded band between the guaranteed outcome and
   the projected one, plus floor rows in the results — the promise and the
@@ -116,8 +121,9 @@ extrapolated beyond its basis.
 in another currency applies `uahPer(hard, t) = uahPer(hard, 0)·(1+d)^t`,
 where `d` is the expected UAH devaluation — so a ₴ rate and a $ rate meet on
 economically honest terms instead of a frozen exchange rate. Hard↔hard cross
-rates stay static; everything is assumed to sit in the fund's currency until
-the end of the horizon.
+rates stay static. Value is assumed to sit in the fund's quote currency
+until the term, then in the post-term currency you pick (exchanged at the
+term date's drifted rate) until the end of the horizon.
 
 ## Hosting on GitHub Pages
 

@@ -120,13 +120,25 @@
 
         <p id="termWarning" class="term-warning is-hidden" role="status"></p>
 
-        <label class="field is-hidden" id="postTermField">
+        <div class="field is-hidden" id="postTermField">
           <span>After that, reinvest the proceeds at</span>
           <div class="input-affix">
-            <input id="postTermRate" type="text" inputmode="decimal" value="5" autocomplete="off" />
+            <input id="postTermRate" type="text" inputmode="decimal" value="5" autocomplete="off"
+              aria-label="Post-term reinvestment rate, % per year" />
             <span class="affix affix-right">% p.a.</span>
           </div>
-        </label>
+          <div class="ptc-toggle" role="group" aria-label="Currency the proceeds sit in after the term">
+            <button type="button" data-ptc="UAH" class="ptc-btn">in &#8372; UAH</button>
+            <button type="button" data-ptc="HARD" class="ptc-btn">in $/&euro; hard currency</button>
+          </div>
+          <p class="micro">
+            Where the proceeds sit decides their devaluation exposure from the
+            term on: in &#8372; they keep eroding against $/&euro;; exchanged
+            into hard currency they&rsquo;re shielded (the rate above then
+            means a hard-currency yield). The fund&rsquo;s own indexation ends
+            with the fund.
+          </p>
+        </div>
 
         <p id="propNote" class="prop-note"></p>
 

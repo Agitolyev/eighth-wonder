@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { parseNum, simulate, fxFactorAt } = require("../assets/js/engine.js");
+const { parseNum, simulate, fxFactorAt, rolloverFactorAt } = require("../assets/js/engine.js");
 
 function approx(actual, expected, tolerance = 1e-9) {
   assert.ok(
@@ -188,4 +188,44 @@ test("fxFactorAt: hard↔hard cross rates are unaffected by the drift", () => {
 
 test("fxFactorAt: zero devaluation reduces to static conversion at any t", () => {
   approx(fxFactorAt("UAH", "USD", UAH_PER, 0, 30), 1 / 44.47, 1e-12);
+});
+
+/* ---------------- rolloverFactorAt ---------------- */
+
+test("rollover: no term, same currency, or t within term reduce to fxFactorAt", () => {
+  approx(rolloverFactorAt("UAH", "USD", null, "USD", UAH_PER, 10, 20),
+    fxFactorAt("UAH", "USD", UAH_PER, 10, 20), 1e-15);
+  approx(rolloverFactorAt("UAH", "UAH", 4, "USD", UAH_PER, 10, 20),
+    fxFactorAt("UAH", "USD", UAH_PER, 10, 20), 1e-15);
+  approx(rolloverFactorAt("UAH", "USD", 4, "USD", UAH_PER, 10, 3),
+    fxFactorAt("UAH", "USD", UAH_PER, 10, 3), 1e-15);
+});
+
+test("rollover ₴→$ at term: devaluation stops eroding after the exchange", () => {
+  // UAH fund, term 4, proceeds moved to USD. Viewed in USD, the factor past
+  // the term is frozen at its term-date value: erosion ends there.
+  const d = 10, term = 4;
+  const atTerm = 1 / (44.47 * Math.pow(1.1, term));
+  approx(rolloverFactorAt("UAH", "USD", term, "USD", UAH_PER, d, 10), atTerm, 1e-12);
+  approx(rolloverFactorAt("UAH", "USD", term, "USD", UAH_PER, d, 30), atTerm, 1e-12);
+});
+
+test("rollover $→₴ at term: a hard-currency fund's proceeds left in ₴ start eroding", () => {
+  // USD fund, term 5, proceeds left in UAH. Viewed in USD, value decays by
+  // (1+d)^(term−t) after the term.
+  const d = 10, term = 5, t = 12;
+  approx(rolloverFactorAt("USD", "UAH", term, "USD", UAH_PER, d, t),
+    Math.pow(1.1, term - t), 1e-12);
+  // ...and viewed in UAH it's flat: the pot IS hryvnia now.
+  approx(rolloverFactorAt("USD", "UAH", term, "UAH", UAH_PER, d, t),
+    44.47 * Math.pow(1.1, term), 1e-9);
+});
+
+test("rollover is continuous at the term boundary", () => {
+  const d = 6.74, term = 4;
+  approx(
+    rolloverFactorAt("UAH", "USD", term, "USD", UAH_PER, d, term),
+    rolloverFactorAt("UAH", "USD", term, "USD", UAH_PER, d, term + 1e-9),
+    1e-10
+  );
 });

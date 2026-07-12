@@ -224,9 +224,34 @@
     return at(quoteCode) / at(displayCode);
   }
 
+  /* -----------------------------------------------------------------------
+   * Post-term currency rollover.
+   *
+   * A fund's currency indexation dies with the fund: when it winds down (or
+   * its projection horizon passes), the proceeds land wherever the investor
+   * puts them — and THAT currency decides their devaluation exposure from
+   * then on. Modelled as an exchange at the term date, at that date's
+   * drifted rate:
+   *
+   *   t ≤ term:  value is in the quote currency        → fx(quote→display, t)
+   *   t > term:  exchanged at term, grows in postCode  → fx(quote→postCode, term)
+   *                                                      · fx(postCode→display, t)
+   *
+   * With postCode === quote (or no term) this reduces to fxFactorAt exactly.
+   * --------------------------------------------------------------------- */
+  function rolloverFactorAt(quoteCode, postCode, termYears, displayCode, uahPer0, devalPct, tYears) {
+    var hasTerm = typeof termYears === "number" && termYears > 0;
+    if (!hasTerm || tYears <= termYears || !postCode || postCode === quoteCode) {
+      return fxFactorAt(quoteCode, displayCode, uahPer0, devalPct, tYears);
+    }
+    return fxFactorAt(quoteCode, postCode, uahPer0, devalPct, termYears) *
+      fxFactorAt(postCode, displayCode, uahPer0, devalPct, tYears);
+  }
+
   return {
     parseNum: parseNum,
     simulate: simulate,
     fxFactorAt: fxFactorAt,
+    rolloverFactorAt: rolloverFactorAt,
   };
 });
