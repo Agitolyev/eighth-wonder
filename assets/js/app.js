@@ -89,6 +89,7 @@
     years: $("years"),
     yearsLabel: $("yearsLabel"),
     horizonOut: $("horizonOut"),
+    termWarning: $("termWarning"),
     propNote: $("propNote"),
     curBtns: document.querySelectorAll(".cur-btn"),
     fxNote: $("fxNote"),
@@ -283,6 +284,7 @@
 
     els.yearsLabel.textContent = input.years + (input.years === 1 ? " year" : " years");
     els.horizonOut.textContent = input.years;
+    updateTermWarning(input.years);
 
     els.s_invested.textContent = fmt(r.contributed);
     els.s_income.textContent = fmt(r.incomeWithdrawn);
@@ -306,6 +308,27 @@
     drawChart(r.rows);
     drawTable(r.rows);
     refreshAddButton();
+  }
+
+  // Fixed-term funds (e.g. Energy's 5 years, Varto's ~11) wind down and return
+  // capital at the end of their term. Modelling a longer horizon quietly
+  // assumes you can keep the exact same return going afterwards, which no fund
+  // can promise — so flag it rather than silently extrapolating.
+  function updateTermWarning(years) {
+    var p = currentProp();
+    var term = p.termYears;
+    var show = typeof term === "number" && term > 0 && years > term;
+    els.termWarning.classList.toggle("is-hidden", !show);
+    if (!show) {
+      els.termWarning.textContent = "";
+      return;
+    }
+    els.termWarning.textContent =
+      p.name + " runs for about " + term + " years, then winds down and returns " +
+      "your capital. There's no guarantee you can keep this exact strategy going " +
+      "for the full " + years + " years — the same fund (or its projected return) " +
+      "may not be available past year " + term + ", so you'd likely have to " +
+      "reinvest elsewhere on whatever terms exist then.";
   }
 
   /* -----------------------------------------------------------------------
@@ -882,11 +905,16 @@
     // Apply proposition defaults to inputs.
     els.rate.value = p.rate;
     els.frequency.value = String(payoutToFreq(p.payout));
-    if (p.termYears) {
-      els.years.max = String(Math.max(30, p.termYears));
-      els.years.value = String(p.termYears);
-    } else {
-      els.years.max = "30";
+    // Widen the slider range to cover longer-term funds, but never overwrite
+    // the horizon the user is already modelling. Switching to a fixed-term
+    // fund used to snap the horizon down to that fund's term (e.g. Energy's 5
+    // years), silently discarding a 30-year horizon — and switching back to an
+    // open-ended fund left it stuck there. Keep the current value; only clamp
+    // it down if it would exceed the new maximum.
+    els.years.max = String(Math.max(30, p.termYears || 0));
+    var maxYears = parseInt(els.years.max, 10);
+    if (parseInt(els.years.value, 10) > maxYears) {
+      els.years.value = String(maxYears);
     }
     // minInvestment / unitSize are stored in UAH, matching the baseUAH source
     // of truth; display conversion happens in refreshMoneyFields().

@@ -5,5 +5,7 @@
 window.FUND_LIVE = {
   "inzhur-reit": { unitPriceUAH: 10.5, asOf: "2026-07-11", sourceUrl: "https://www.inzhur.reit/offer/inzhur-reit" },
   "inzhur-energy": { unitPriceUAH: 6000, asOf: "2026-07-11", sourceUrl: "https://www.inzhur.reit/offer/inzhur-energy" },
-  "varto-wind": { unitPriceUAH: 1025, asOf: "2026-07-11", sourceUrl: "https://varto.investments/about-fund" }
+  "varto-wind": { unitPriceUAH: 1025, asOf: "2026-07-11", sourceUrl: "https://varto.investments/about-fund" },
+  "tvoe-kolo-income": { unitPriceUAH: 1000, asOf: "2026-07-12", sourceUrl: "https://tvoekolo.com.ua/fondy-zemelnykh-investytsij/" },
+  "tvoe-kolo-reinvest": { unitPriceUAH: 1000, asOf: "2026-07-12", sourceUrl: "https://tvoekolo.com.ua/fondy-zemelnykh-investytsij/" }
 };

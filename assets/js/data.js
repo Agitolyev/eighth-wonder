@@ -147,6 +147,68 @@ window.PROPOSITIONS = [
     url: "https://varto.investments/about-fund",
   },
   {
+    id: "tvoe-kolo-income",
+    name: "Твоє Коло · Щорічний дохід",
+    operator: "Твоє Коло (КУА «Профіт»)",
+    tagline: "Co-own farmland leased to farmers — yearly rent in hryvnia.",
+    rate: 6,
+    currency: "UAH",
+    payout: "annual",
+    distributes: true,
+    minInvestment: 121800,
+    unitSize: 1000,
+    termYears: 5,
+    accent: "#ca8a04",
+    highlights: [
+      "~6% p.a. planned in UAH from rent (before land-price growth)",
+      "Annual dividends paid from farmers' lease payments",
+      "5-year land REIT — become a co-owner of farmland",
+      "Entry from ₴121,800, then top up from ₴1,000",
+    ],
+    note:
+      "A land REIT run by КУА «Профіт»: you co-own agricultural plots already " +
+      "leased to vetted farming companies, and the rent is distributed once a " +
+      "year — cash you can withdraw (simple) or reinvest (compound). The 6% is " +
+      "the planned rental yield in UAH and excludes any appreciation in the " +
+      "land itself. Farmland carries wartime, regulatory and land-market risk, " +
+      "so returns are not guaranteed.",
+    dataAsOf: "2026-07-12",
+    source: "tvoekolo.com.ua fund page + public reporting (DIM.RIA, dev.ua, NV)",
+    sourceUrl: "https://tvoekolo.com.ua/fondy-zemelnykh-investytsij/",
+    url: "https://invest.tvoekolo.com.ua/",
+  },
+  {
+    id: "tvoe-kolo-reinvest",
+    name: "Твоє Коло · Реінвестиція",
+    operator: "Твоє Коло (КУА «Профіт»)",
+    tagline: "Farmland fund that plows all the rent back into more land.",
+    rate: 15,
+    currency: "USD",
+    payout: "annual",
+    distributes: false,
+    minInvestment: 121800,
+    unitSize: 1000,
+    termYears: 10,
+    accent: "#4d7c0f",
+    highlights: [
+      "~15% p.a. projected in USD (incl. land capitalisation)",
+      "No cash payouts — rent buys more land and compounds",
+      "~10-year fund launched 2024, single payout at term end",
+      "Entry from ₴121,800, then top up from ₴1,000",
+    ],
+    note:
+      "The compounding sibling of Щорічний дохід: instead of paying the rent " +
+      "out, the fund reinvests it into more farmland, so value accrues inside " +
+      "the certificate until the fund winds down (around 2033). The 'simple' " +
+      "column below shows what the same rate would earn without that yearly " +
+      "compounding, for comparison. Projected in USD including land-price " +
+      "growth — actual returns depend on the land market and are not guaranteed.",
+    dataAsOf: "2026-07-12",
+    source: "tvoekolo.com.ua fund page + public reporting (DIM.RIA, dev.ua, NV)",
+    sourceUrl: "https://tvoekolo.com.ua/fondy-zemelnykh-investytsij/",
+    url: "https://invest.tvoekolo.com.ua/",
+  },
+  {
     id: "custom",
     name: "Custom",
     operator: "You",

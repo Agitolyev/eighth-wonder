@@ -369,6 +369,24 @@ input[type="range"] {
   padding-left: 0.9rem;
   margin: 0.25rem 0 0;
 }
+/* Heads-up when the modelled horizon runs past a fund's fixed term. */
+.term-warning {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #92600a;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin: 0.25rem 0 0;
+}
+:root[data-theme="dark"] .term-warning {
+  color: #f0b657;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.term-warning.is-hidden { display: none; }
+
 .asof-badge {
   display: inline-block;
   background: var(--accent-soft);

@@ -12,6 +12,8 @@ It comes pre-loaded with the propositions I'm actually investing in:
 | **Inzhur REIT** | ~9.5% p.a. (USD) | Commercial real estate. Pays **monthly dividends** — withdraw them (simple) or reinvest (compound). |
 | **Inzhur Energy** | ~15% p.a. (USD) | Power-plant fund, 5-year term. **No dividends** — value accrues via annual revaluation, so it compounds automatically. |
 | **Varto Wind** | ~14.29% p.a. (EUR) | Wind turbines in the Carpathians, ~11-year term. Pays **quarterly dividends** with a guaranteed 5% floor — withdraw them (simple) or reinvest (compound). |
+| **Твоє Коло · Щорічний дохід** | ~6% p.a. (UAH) | Farmland REIT, 5-year term. Pays **annual dividends** from farm rent (before land-price growth) — withdraw or reinvest. |
+| **Твоє Коло · Реінвестиція** | ~15% p.a. (USD) | Farmland REIT, ~10-year term. **No dividends** — rent is plowed back into more land, so it compounds automatically until the fund closes. |
 | **Custom** | your rate | A blank slate to model any rate, term and payout schedule. |
 
 > Projected returns are illustrative, quoted in USD terms, and **not
@@ -26,7 +28,8 @@ refresh them (see below).
 
 ## Features
 
-- Pick a proposition; the rate, payout frequency and term auto-fill (all editable).
+- Pick a proposition; the rate and payout frequency auto-fill (all editable).
+  Your time horizon is preserved when you switch propositions.
 - **Withdraw vs Reinvest** compared side by side: total invested, income
   withdrawn / interest earned, and ending net worth.
 - The **compounding advantage** — how much extra reinvesting earns you.

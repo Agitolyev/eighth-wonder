@@ -68,6 +68,11 @@ const ADAPTERS = {
   "inzhur-energy": (html) => parseUahPrice(html, { min: 100, max: 100000 }),
   // Varto wind certificate — ~₴1,000.
   "varto-wind": (html) => parseUahPrice(html, { min: 100, max: 100000 }),
+  // Твоє Коло land certificates — topped up from ~₴1,000 each. Tight bounds so
+  // a parsed value can only be a per-certificate price, never the ₴121,800
+  // entry ticket, the ₴300k land minimum or the fund's ₴300M emission.
+  "tvoe-kolo-income": (html) => parseUahPrice(html, { min: 200, max: 5000 }),
+  "tvoe-kolo-reinvest": (html) => parseUahPrice(html, { min: 200, max: 5000 }),
 };
 
 // ---- CSV / JS I/O ---------------------------------------------------------
