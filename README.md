@@ -14,6 +14,8 @@ It comes pre-loaded with the propositions I'm actually investing in:
 | **Varto Wind** | ~14.29% p.a. (EUR) | Wind turbines in the Carpathians, ~11-year term. Pays **quarterly dividends** with a guaranteed 5% floor — withdraw them (simple) or reinvest (compound). |
 | **Твоє Коло · Щорічний дохід** | ~6% p.a. (UAH) | Farmland REIT, 5-year term. Pays **annual dividends** from farm rent (before land-price growth) — withdraw or reinvest. |
 | **Твоє Коло · Реінвестиція** | ~15% p.a. (USD) | Farmland REIT, ~10-year term. **No dividends** — rent is plowed back into more land, so it compounds automatically until the fund closes. |
+| **Сімейні Молочні Ферми · Позика** | ~21% p.a. (UAH) | Direct loan to a private dairy-farm business (not a fund). **10% guaranteed** paid **quarterly** + ~11% projected premium — withdraw or reinvest. |
+| **Сімейні Молочні Ферми · Частка** | ~23% p.a. (UAH) | Equity stake in the same business. **Annual dividends** (~10–12%) plus projected share-value growth (~2× by 2029); modelled here as a compounding hold-to-exit. |
 | **Custom** | your rate | A blank slate to model any rate, term and payout schedule. |
 
 > Projected returns are illustrative, quoted in USD terms, and **not
