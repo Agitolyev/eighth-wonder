@@ -55,6 +55,15 @@
         <p class="micro fx-note" id="fxNote"></p>
 
         <label class="field">
+          <span>Expected UAH devaluation <em>(vs $/€, per year)</em></span>
+          <div class="input-affix">
+            <input id="deval" type="text" inputmode="decimal" value="0" autocomplete="off" />
+            <span class="affix affix-right">% p.a.</span>
+          </div>
+        </label>
+        <p class="micro" id="devalNote"></p>
+
+        <label class="field">
           <span>Initial investment</span>
           <div class="input-affix">
             <span class="affix" data-affix="currency">$</span>
@@ -111,6 +120,14 @@
 
         <p id="termWarning" class="term-warning is-hidden" role="status"></p>
 
+        <label class="field is-hidden" id="postTermField">
+          <span>After that, reinvest the proceeds at</span>
+          <div class="input-affix">
+            <input id="postTermRate" type="text" inputmode="decimal" value="5" autocomplete="off" />
+            <span class="affix affix-right">% p.a.</span>
+          </div>
+        </label>
+
         <p id="propNote" class="prop-note"></p>
 
         <div class="plot-mode">
@@ -138,12 +155,13 @@
           <article class="scenario scenario-simple">
             <header>
               <span class="dot"></span>
-              <h3>Withdraw <small>simple interest</small></h3>
+              <h3><span id="s_title">Withdraw</span> <small id="s_sub">simple interest</small></h3>
             </header>
-            <p class="hint">You pocket every payout as income. Capital stays flat.</p>
+            <p class="hint" id="s_hint">You pocket every payout as income. Capital stays flat.</p>
             <dl>
               <div><dt>Total contributed</dt><dd id="s_invested">—</dd></div>
-              <div><dt>Income withdrawn</dt><dd id="s_income">—</dd></div>
+              <div><dt id="s_income_label">Income withdrawn</dt><dd id="s_income">—</dd></div>
+              <div id="s_floor_row" class="floor-row is-hidden"><dt id="s_floor_label">At guaranteed floor</dt><dd id="s_floor">—</dd></div>
               <div class="total"><dt>Net worth</dt><dd id="s_total">—</dd></div>
             </dl>
           </article>
@@ -158,6 +176,7 @@
               <div><dt>Total contributed</dt><dd id="c_invested">—</dd></div>
               <div><dt>Interest earned</dt><dd id="c_interest">—</dd></div>
               <div id="c_idle_row"><dt>Uninvested cash</dt><dd id="c_idle">—</dd></div>
+              <div id="c_floor_row" class="floor-row is-hidden"><dt id="c_floor_label">At guaranteed floor</dt><dd id="c_floor">—</dd></div>
               <div class="total"><dt>Ending balance</dt><dd id="c_total">—</dd></div>
             </dl>
           </article>
@@ -173,8 +192,9 @@
           <div id="chart" role="img" aria-label="Growth chart comparing withdraw vs reinvest over time"></div>
           <figcaption class="legend">
             <span class="lg lg-compound">Reinvest (net worth)</span>
-            <span class="lg lg-simple">Withdraw (net worth)</span>
+            <span class="lg lg-simple" id="legendSimple">Withdraw (net worth)</span>
             <span class="lg lg-invested">Total contributed</span>
+            <span class="lg lg-floor" id="legendFloor" hidden>Guaranteed floor (reinvest)</span>
           </figcaption>
         </figure>
 
@@ -268,8 +288,12 @@
               <li><strong>No fees, taxes or inflation.</strong> Management fees,
                 entry and exit costs, income and capital-gains tax, and
                 inflation eroding real purchasing power are not deducted.</li>
-              <li><strong>Static exchange rate.</strong> Cross-currency figures
-                use one saved FX snapshot, not live or future rates.</li>
+              <li><strong>Flat currency drift.</strong> Cross-currency figures
+                use one saved FX snapshot plus a single, steady UAH-devaluation
+                assumption. Real devaluation arrives in jumps, not straight
+                lines — and the suggested figure is a trailing average, not a
+                forecast. Everything is assumed to stay in the fund&rsquo;s own
+                currency until the end of the horizon.</li>
               <li><strong>Perfect execution.</strong> It assumes payouts always
                 arrive on time and reinvest instantly, with certificates always
                 available to buy.</li>
@@ -370,6 +394,8 @@
   <script src="assets/js/data.js"></script>
   <script src="assets/js/fx-rates.js"></script>
   <script src="assets/js/funds-live.js"></script>
+  <script src="assets/js/devaluation.js"></script>
+  <script src="assets/js/engine.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>

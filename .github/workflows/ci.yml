@@ -1,0 +1,31 @@
+name: CI
+
+# Runs the unit tests (engine math + update-script parsers) on every push and
+# pull request. No dependencies to install — pure Node built-ins.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run tests
+        run: node --test tests/engine.test.mjs tests/update-scripts.test.mjs
+
+      - name: Generated files match their CSV sources
+        # The page loads generated JS; the CSVs are the source of truth. Fail
+        # if someone edited one side without regenerating the other.
+        run: |
+          node scripts/update-fx.mjs --regen
+          node scripts/update-funds.mjs --regen
+          node scripts/update-devaluation.mjs --regen
+          git diff --exit-code assets/js/fx-rates.js assets/js/funds-live.js assets/js/devaluation.js

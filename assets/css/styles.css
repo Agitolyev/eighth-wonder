@@ -386,6 +386,7 @@ input[type="range"] {
   border-color: rgba(245, 158, 11, 0.3);
 }
 .term-warning.is-hidden { display: none; }
+.field.is-hidden { display: none; }
 
 .asof-badge {
   display: inline-block;
@@ -442,6 +443,13 @@ input[type="range"] {
 
 #c_idle_row.is-hidden { display: none; }
 #c_idle_row dd { color: var(--muted); }
+
+/* Guaranteed-floor rows: what the contractual minimum yields, kept visibly
+ * quieter than the projected totals but always on screen when a floor exists. */
+.floor-row.is-hidden { display: none; }
+.floor-row dt, .floor-row dd { color: #b45309; font-size: 0.8rem; }
+:root[data-theme="dark"] .floor-row dt,
+:root[data-theme="dark"] .floor-row dd { color: #f0b657; }
 
 /* ---------- Results ---------- */
 .compare {
@@ -512,6 +520,7 @@ input[type="range"] {
 .lg-compound::before { background: var(--compound); }
 .lg-simple::before { background: var(--simple); }
 .lg-invested::before { background: transparent; border-top: 2px dashed var(--invested); height: 0; border-radius: 0; }
+.lg-floor::before { background: transparent; border-top: 2px dashed #f59e0b; height: 0; border-radius: 0; }
 
 /* ---------- Table ---------- */
 .breakdown { border-top: 1px solid var(--line); padding-top: 0.4rem; }
@@ -574,6 +583,9 @@ td.diff { color: var(--compound); }
   box-shadow: var(--shadow), inset 0 0 0 1px var(--line-strong);
 }
 .mode-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Withdraw is disabled for funds that pay no cash out — nothing to withdraw. */
+.mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mode-btn:disabled:hover { color: var(--muted); }
 
 /* Reinvest / Withdraw tag on chips and table rows. */
 .mode-tag {
@@ -590,6 +602,24 @@ td.diff { color: var(--compound); }
   vertical-align: middle;
 }
 .mode-tag.is-withdraw { background: var(--bg-soft); color: var(--muted); }
+
+/* Quote-currency tag: a ₴ line and a $ line are only comparable through the
+ * devaluation assumption, so every chip and table row says which one it is. */
+.cur-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  vertical-align: middle;
+}
+:root[data-theme="dark"] .cur-tag { background: rgba(96, 165, 250, 0.14); color: #7fb3f7; }
+.cur-tag.is-uah { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+:root[data-theme="dark"] .cur-tag.is-uah { background: rgba(245, 158, 11, 0.14); color: #f0b657; }
 
 .btn-add {
   display: flex;

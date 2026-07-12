@@ -1,0 +1,52 @@
+name: Update devaluation
+
+# Refreshes the suggested UAH-devaluation assumption daily from National Bank
+# of Ukraine history and commits the change. scripts/update-devaluation.mjs
+# computes the trailing 1/3/5-year annualized UAH/USD drift, rewrites
+# assets/data/devaluation.csv (source of truth) and regenerates
+# assets/js/devaluation.js (what the page loads). The Pages deploy republishes
+# on its own daily schedule (07:00 UTC).
+on:
+  schedule:
+    # 06:25 UTC daily — between the FX job (06:20) and the funds job (06:30).
+    - cron: "25 6 * * *"
+  workflow_dispatch:
+
+# Needed so the job can push the updated files back to the repo.
+permissions:
+  contents: write
+
+# Don't overlap with another run mid-push.
+concurrency:
+  group: update-devaluation
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Compute trailing devaluation from NBU history
+        run: node scripts/update-devaluation.mjs
+
+      - name: Commit updated figures
+        # Runs even if a window failed to fetch (that keeps the previous value
+        # and marks the job failed — same honesty contract as the funds job).
+        if: always()
+        run: |
+          if [[ -z "$(git status --porcelain assets/data/devaluation.csv assets/js/devaluation.js)" ]]; then
+            echo "Devaluation figures unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/devaluation.csv assets/js/devaluation.js
+          git commit -m "chore: update devaluation figures ($(date -u +%Y-%m-%d))"
+          git push
