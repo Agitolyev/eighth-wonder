@@ -6,7 +6,7 @@
 window.INFL = {
   suggestedPct: 2.8,
   suggestedWindowYears: 10,
-  windows: { "1": 2.97, "3": 4.96, "10": 2.8 },
+  windows: { "1": 4.25, "3": 4.96, "10": 2.8 },
   cpiNow: 314.175,
   cpiThen: 238.343,
   thenMonth: "2014-06",
