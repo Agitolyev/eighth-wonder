@@ -45,10 +45,12 @@ refresh them (see below).
   devaluation % per year** on top of the FX snapshot, so high-UAH-rate offers
   no longer look like free money next to hard-currency ones. The suggested
   default is the *actual trailing NBU drift* (see below) — a rear-view
-  average, clearly labelled, never a forecast. A checkbox switches the
-  assumption off entirely (frozen-FX view) while remembering your rate — and
-  the results callout then warns that ₴ and hard-currency returns are being
-  treated as directly comparable. And it never happens
+  average, clearly labelled, never a forecast. A single **money view** switch
+  picks how much realism to apply — **frozen FX** (no drift, the skeptic's
+  baseline), **₴ devaluation** (the default), or **today's money** (see
+  below) — and the rates stay remembered whichever rung is selected. In the
+  frozen-FX view the results callout warns that ₴ and hard-currency returns
+  are being treated as directly comparable. And it never happens
   silently: whenever results cross between a fund's quote currency and the
   display currency, a callout in the results panel says exactly what's being
   applied and why (eroding a ₴ rate shown in $/€, boosting a $/€ rate shown
@@ -68,13 +70,15 @@ refresh them (see below).
   5%, SMF loan's 10%) show a shaded band between the guaranteed outcome and
   the projected one, plus floor rows in the results — the promise and the
   pitch, never conflated.
-- **"Show in today's money."** Hard currencies melt too — a nominal $ figure
-  30 years out overstates its real worth. An optional toggle deflates every
-  displayed figure by an editable **hard-currency inflation % per year**
-  (₴ display additionally folds in the devaluation drift, which makes real
-  values identical across display currencies). The suggested default is the
-  trailing US CPI drift, auto-refreshed daily — an average, not a forecast.
-  Off by default: figures stay nominal unless you ask.
+- **"Today's money" view.** Hard currencies melt too — a nominal $ figure
+  30 years out overstates its real worth. The third rung of the money-view
+  switch deflates every displayed figure by an editable **hard-currency
+  inflation % per year** on top of the devaluation drift (₴ display folds
+  both in, which makes real values identical across display currencies). The
+  suggested default is the trailing US CPI drift, auto-refreshed daily — an
+  average, not a forecast. Not the default: figures stay nominal unless you
+  pick it. (Inflation *without* devaluation is deliberately not offered — it
+  would deflate by $ inflation while pretending ₴ is a hard currency.)
 - **Whole-unit reinvestment** — you can't buy a fraction of a fund unit (a ₴10
   REIT certificate, a ₴6,000 Energy certificate…), so payouts and top-ups are
   pooled and only buy whole units; anything left over waits as **uninvested
@@ -88,8 +92,8 @@ refresh them (see below).
   (National Bank of Ukraine rates, stamped with an "FX as of …" note) plus
   the devaluation drift — nothing is fetched at runtime, so the app stays
   offline-friendly.
-- Saved comparison options and the devaluation assumption **survive a
-  refresh** (localStorage); each comparison chip carries a quote-currency
+- Saved comparison options, the money view and its rate assumptions
+  **survive a refresh** (localStorage); each comparison chip carries a quote-currency
   badge so ₴ and $ lines are never mistaken for like-for-like.
 - Runs entirely in your browser — no build step, no dependencies, no data leaves the page.
 
@@ -135,7 +139,7 @@ rates stay static. Value is assumed to sit in the fund's quote currency
 until the term, then in the post-term currency you pick (exchanged at the
 term date's drifted rate) until the end of the horizon.
 
-**Real terms.** With "show in today's money" on, displayed values are
+**Real terms.** With the today's-money view selected, displayed values are
 divided by `(1+i)^t` (hard-currency display) or `(1+i)^t·(1+d)^t` (₴
 display), where `i` is hard-currency inflation. Real values are
 display-currency-invariant: the same purchasing power is reported whether
@@ -259,7 +263,7 @@ node scripts/update-devaluation.mjs --regen   # regenerate the JS from the CSV (
 
 ### Hard-currency inflation
 
-The "show in today's money" toggle needs a hard-currency inflation figure.
+The today's-money view needs a hard-currency inflation figure.
 Same honest-default approach: the **trailing** annualized US CPI-U drift over
 the last 1, 3 and 10 years, with the 10-year window as the suggested default
 (it smooths the 2021–23 spike, which would otherwise dominate a 30-year

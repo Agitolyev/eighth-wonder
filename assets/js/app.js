@@ -35,16 +35,19 @@
     currencyCode: "USD",
     currency: "$",
     baseUAH: { principal: 0, contribution: 0, step: 0 },
+    // How future figures are shown — one ladder of increasing realism:
+    //   "frozen"   nominal amounts at today's frozen FX (skeptic's baseline)
+    //   "nominal"  nominal amounts, ₴↔$/€ conversions drift by devalPct
+    //   "real"     deflated to today's purchasing power (drift + inflation)
+    // The fourth combination of the old two toggles (inflation without
+    // devaluation) was near-incoherent — pretending ₴ is a hard currency
+    // while deflating by $ inflation — so it isn't offered.
+    viewMode: "nominal",
     // Expected UAH devaluation vs hard currencies, % per year. Seeded from
-    // the NBU trailing average (editable, persisted). The on/off switch keeps
-    // the rate remembered while disabled — off means "compare at frozen FX",
-    // not "forget my assumption".
-    devalOn: true,
+    // the NBU trailing average (editable, persisted). Selecting another view
+    // keeps the rate remembered — "don't apply" never means "forget".
     devalPct: DEVAL && isFinite(DEVAL.suggestedPct) ? DEVAL.suggestedPct : 0,
-    // Today's-money view: deflate everything by hard-currency inflation
-    // (₴ display additionally by the devaluation drift). Off by default —
-    // nominal figures with the option, never a silent adjustment.
-    realTerms: false,
+    // Hard-currency inflation for the today's-money view, % per year.
     inflPct: INFL && isFinite(INFL.suggestedPct) ? INFL.suggestedPct : 2.5,
   };
 
@@ -64,11 +67,11 @@
   function convert(amount, fromCode, toCode) {
     return (amount || 0) * uahPer(fromCode) / uahPer(toCode);
   }
-  // The devaluation rate that's actually in force: 0 while switched off.
+  // The devaluation rate that's actually in force: 0 in the frozen-FX view.
   // Every consumer (conversion factors, deflator, callouts) reads this, so
-  // the toggle is honoured everywhere at once.
+  // the money-view switch is honoured everywhere at once.
   function effDevalPct() {
-    return state.devalOn ? state.devalPct : 0;
+    return state.viewMode === "frozen" ? 0 : state.devalPct;
   }
   // Resolve a 'UAH' | 'HARD' post-term choice to a concrete currency code:
   // hard means "stay in the fund's own hard currency" (or USD for a ₴ fund —
@@ -88,7 +91,7 @@
       cfg.quote, postCurOf(cfg), cfg.termYears, state.currencyCode,
       FX.uahPer, effDevalPct(), tYears
     );
-    if (state.realTerms) {
+    if (state.viewMode === "real") {
       f *= Engine.deflatorAt(state.currencyCode, state.inflPct, effDevalPct(), tYears);
     }
     return f;
@@ -134,11 +137,11 @@
     postTermField: $("postTermField"),
     postTermRate: $("postTermRate"),
     ptcBtns: document.querySelectorAll(".ptc-btn"),
-    devalOn: $("devalOn"),
+    viewBtns: document.querySelectorAll(".view-btn"),
+    viewNote: $("viewNote"),
     deval: $("deval"),
     devalNote: $("devalNote"),
     devalField: document.querySelector(".deval-field"),
-    realTerms: $("realTerms"),
     infl: $("infl"),
     inflNote: $("inflNote"),
     realField: document.querySelector(".real-field"),
@@ -295,8 +298,8 @@
   // devaluation note: a checkable trailing average, never a forecast.
   function renderInflNote() {
     if (!els.inflNote) return;
-    var base = "Even $/€ figures are nominal — this deflates everything to " +
-      "today's purchasing power (₴ view also folds in the devaluation drift).";
+    var base = "Applied only in the today's-money view — even $/€ figures " +
+      "are nominal without it (₴ view also folds in the devaluation drift).";
     if (INFL && isFinite(INFL.suggestedPct)) {
       base += " Suggested " + INFL.suggestedPct + "%/yr = trailing " +
         (INFL.suggestedWindowYears || "?") + "y US CPI drift (index " +
@@ -306,15 +309,29 @@
     els.inflNote.textContent = base;
   }
 
-  // Grey out the devaluation input while the assumption is switched off.
-  function syncDevalState() {
-    if (els.devalField) els.devalField.classList.toggle("is-off", !state.devalOn);
-  }
+  // One-line explainer for each rung of the money-view ladder.
+  var VIEW_NOTES = {
+    frozen: "Nominal future amounts at today's frozen exchange rates — ₴ and " +
+      "$/€ returns treated as directly comparable, no inflation subtracted.",
+    nominal: "Nominal future amounts; ₴↔$/€ conversions drift by the expected " +
+      "devaluation below. $/€ cross rates stay static.",
+    real: "Everything deflated to today's purchasing power — devaluation plus " +
+      "hard-currency inflation — so the same real value is shown whichever " +
+      "display currency you pick.",
+  };
 
-  // Grey out the inflation input while the today's-money view is off.
-  function syncRealState() {
-    els.realField.classList.toggle("is-off", !state.realTerms);
-    if (els.realTag) els.realTag.hidden = !state.realTerms;
+  // Reflect the money view everywhere: the active switch button, the
+  // explainer note, the "in today's money" tag on the results, and greying
+  // out whichever rate inputs the current view doesn't apply (the rates stay
+  // remembered — "don't apply" never means "forget").
+  function syncViewState() {
+    els.viewBtns.forEach(function (b) {
+      b.classList.toggle("is-active", b.getAttribute("data-view") === state.viewMode);
+    });
+    if (els.viewNote) els.viewNote.textContent = VIEW_NOTES[state.viewMode] || "";
+    if (els.devalField) els.devalField.classList.toggle("is-off", state.viewMode === "frozen");
+    if (els.realField) els.realField.classList.toggle("is-off", state.viewMode !== "real");
+    if (els.realTag) els.realTag.hidden = state.viewMode !== "real";
   }
 
   /* -----------------------------------------------------------------------
@@ -325,10 +342,9 @@
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         v: 1,
-        devalOn: state.devalOn,
+        view: state.viewMode,
         devalPct: state.devalPct,
         inflPct: state.inflPct,
-        realTerms: state.realTerms,
         comparisons: comparisons.map(function (c) {
           return {
             propId: c.propId, name: c.name, mode: c.mode, rate: c.rate,
@@ -348,9 +364,17 @@
     catch (e) { return; }
     if (!data || data.v !== 1) return;
     if (isFinite(data.devalPct)) state.devalPct = clampDeval(Number(data.devalPct));
-    state.devalOn = data.devalOn !== false; // default on for stores predating the toggle
     if (isFinite(data.inflPct)) state.inflPct = clampInfl(Number(data.inflPct));
-    state.realTerms = data.realTerms === true;
+    if (["frozen", "nominal", "real"].indexOf(data.view) > -1) {
+      state.viewMode = data.view;
+    } else {
+      // Stores predating the single money-view switch saved two booleans.
+      // realTerms wins (its orphaned deval-off combination folds into the
+      // full real view); devalOn:false alone maps to the frozen-FX view.
+      state.viewMode = data.realTerms === true ? "real"
+        : data.devalOn === false ? "frozen"
+        : "nominal";
+    }
     (Array.isArray(data.comparisons) ? data.comparisons : []).forEach(function (c) {
       if (!c || !c.baseUAH || !isFinite(c.rate) || !isFinite(c.years)) return;
       if (comparisons.length >= COMPARE_MAX) return;
@@ -533,11 +557,15 @@
     } else if (d === 0) {
       tone = "is-neutral";
       text = "Converted " + quote + " → " + display + " at a frozen exchange " +
-        "rate: the devaluation assumption is " +
-        (state.devalOn ? "set to 0%/yr" : "switched off") + ", which treats ₴ " +
-        "and hard-currency returns as directly comparable. History hasn't " +
-        "been kind to that assumption — consider re-enabling the suggested " +
-        "trailing figure in the settings.";
+        "rate: " +
+        (state.viewMode === "frozen"
+          ? "the frozen-FX money view is selected"
+          : "the devaluation assumption is set to 0%/yr") +
+        ", which treats ₴ and hard-currency returns as directly comparable. " +
+        "History hasn't been kind to that assumption — " +
+        (state.viewMode === "frozen"
+          ? "switch the money view to apply the suggested trailing drift."
+          : "consider the suggested trailing figure in the settings.");
     } else if (quote === "UAH") {
       tone = "is-eroding";
       text = "Devaluation applied: " + name + "'s " + input.rate + "% is " +
@@ -1093,7 +1121,7 @@
     var converted = data.some(function (s) {
       return s.quote !== display && (s.quote === "UAH" || display === "UAH");
     });
-    var inflLine = state.realTerms
+    var inflLine = state.viewMode === "real"
       ? " All lines are additionally deflated by " + state.inflPct +
         "%/yr hard-currency inflation — values are in today's money."
       : "";
@@ -1417,17 +1445,14 @@
         convert(parseNum(els[k].value), state.currencyCode, "UAH");
     });
 
-    // Restore what survives a refresh: saved comparisons + the devaluation
-    // assumption. Must happen before the first render.
+    // Restore what survives a refresh: saved comparisons + the money view
+    // and its rate assumptions. Must happen before the first render.
     loadStore();
     els.deval.value = state.devalPct;
-    els.devalOn.checked = state.devalOn;
     renderDevalNote();
-    syncDevalState();
     els.infl.value = state.inflPct;
-    els.realTerms.checked = state.realTerms;
     renderInflNote();
-    syncRealState();
+    syncViewState();
 
     // Money fields feed the UAH source of truth as the user types.
     Object.keys(MONEY_KEYS).forEach(function (k) {
@@ -1441,25 +1466,21 @@
       els[k].addEventListener("input", render);
     });
 
+    // Money view + its rate assumptions apply to everything on the page,
+    // including the saved comparisons — one shared set of assumptions.
+    els.viewBtns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-view");
+        if (!v || v === state.viewMode) return;
+        state.viewMode = v;
+        syncViewState();
+        render();
+        renderComparisons();
+        saveStore();
+      });
+    });
     els.deval.addEventListener("input", function () {
       state.devalPct = clampDeval(parseNum(els.deval.value));
-      render();
-      renderComparisons();
-      saveStore();
-    });
-    els.devalOn.addEventListener("change", function () {
-      state.devalOn = els.devalOn.checked;
-      syncDevalState();
-      render();
-      renderComparisons();
-      saveStore();
-    });
-
-    // Today's-money view: deflates every displayed figure, including the
-    // saved comparisons — one shared assumption, like devaluation.
-    els.realTerms.addEventListener("change", function () {
-      state.realTerms = els.realTerms.checked;
-      syncRealState();
       render();
       renderComparisons();
       saveStore();

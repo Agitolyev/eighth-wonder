@@ -54,31 +54,35 @@
         </div>
         <p class="micro fx-note" id="fxNote"></p>
 
-        <div class="field deval-field">
-          <label class="checkbox">
-            <input id="devalOn" type="checkbox" checked />
-            <span>Apply expected UAH devaluation <em>(vs $/&euro;)</em></span>
-          </label>
+        <div class="field view-field">
+          <span>Money view</span>
+          <div class="view-toggle" role="group" aria-label="How future figures are shown">
+            <button type="button" data-view="frozen" class="view-btn">Frozen FX</button>
+            <button type="button" data-view="nominal" class="view-btn is-active">&#8372; devaluation</button>
+            <button type="button" data-view="real" class="view-btn">Today&rsquo;s money</button>
+          </div>
+          <p class="micro" id="viewNote"></p>
+        </div>
+
+        <label class="field deval-field">
+          <span>Expected UAH devaluation <em>(vs $/&euro;)</em></span>
           <div class="input-affix" id="devalWrap">
             <input id="deval" type="text" inputmode="decimal" value="0" autocomplete="off"
               aria-label="Expected UAH devaluation, % per year" />
             <span class="affix affix-right">% p.a.</span>
           </div>
           <p class="micro" id="devalNote"></p>
-        </div>
+        </label>
 
-        <div class="field real-field">
-          <label class="checkbox">
-            <input id="realTerms" type="checkbox" />
-            <span>Show in today&rsquo;s money <em>(subtract $/&euro; inflation)</em></span>
-          </label>
+        <label class="field real-field">
+          <span>Hard-currency inflation <em>($/&euro;)</em></span>
           <div class="input-affix" id="inflWrap">
             <input id="infl" type="text" inputmode="decimal" value="2.8" autocomplete="off"
               aria-label="Hard-currency inflation, % per year" />
             <span class="affix affix-right">% p.a.</span>
           </div>
           <p class="micro" id="inflNote"></p>
-        </div>
+        </label>
 
         <label class="field">
           <span>Initial investment</span>
