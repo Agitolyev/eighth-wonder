@@ -1,4 +1,4 @@
 window_years,annual_pct,cpi_now,cpi_then,then_month,as_of,source
-1,4.25,335.123,321.465,2025-05,2026-05,"US CPI-U (CUUR0000SA0), Bureau of Labor Statistics (bls.gov)"
+1,3.53,333.952,322.561,2025-06,2026-06,"US CPI-U (CUUR0000SA0), Bureau of Labor Statistics (bls.gov)"
 3,4.96,314.175,271.696,2021-06,2024-06,"US CPI-U (CUUR0000SA0), Bureau of Labor Statistics (bls.gov)"
 10,2.80,314.175,238.343,2014-06,2024-06,"US CPI-U (CUUR0000SA0), Bureau of Labor Statistics (bls.gov)"
