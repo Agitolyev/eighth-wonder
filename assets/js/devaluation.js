@@ -4,12 +4,12 @@
  * SUGGESTED devaluation assumption, not a forecast. Static snapshot:
  * nothing is fetched at runtime, so the app runs offline. */
 window.DEVAL = {
-  suggestedPct: 6.85,
+  suggestedPct: 6.89,
   suggestedWindowYears: 3,
-  windows: { "1": 7.82, "3": 6.85, "5": 10.85 },
-  rateNow: 44.6144,
+  windows: { "1": 8.35, "3": 6.89, "5": 10.88 },
+  rateNow: 44.659,
   rateThen: 36.5686,
-  thenDate: "2023-08-21",
-  asOf: "2026-08-21",
+  thenDate: "2023-08-24",
+  asOf: "2026-08-24",
   source: "National Bank of Ukraine official rates (bank.gov.ua)",
 };
