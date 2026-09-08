@@ -4,10 +4,10 @@
  * SUGGESTED devaluation assumption, not a forecast. Static snapshot:
  * nothing is fetched at runtime, so the app runs offline. */
 window.DEVAL = {
-  suggestedPct: 6.6,
+  suggestedPct: 6.73,
   suggestedWindowYears: 3,
-  windows: { "1": 7.46, "3": 6.6, "5": 10.63 },
-  rateNow: 44.2955,
+  windows: { "1": 7.87, "3": 6.73, "5": 10.71 },
+  rateNow: 44.4654,
   rateThen: 36.5686,
   thenDate: "2023-09-08",
   asOf: "2026-09-08",
