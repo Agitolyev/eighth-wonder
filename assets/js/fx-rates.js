@@ -4,5 +4,5 @@
 window.FX = {
   asOf: "2026-09-08",
   source: "National Bank of Ukraine official rates (bank.gov.ua)",
-  uahPer: { UAH: 1, USD: 44.2955, EUR: 51.4842 },
+  uahPer: { UAH: 1, USD: 44.4654, EUR: 51.6817 },
 };
