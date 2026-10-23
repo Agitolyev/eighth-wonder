@@ -2,7 +2,7 @@
  * Do not edit by hand — the daily "Update FX rates" workflow overwrites it.
  * Static snapshot: nothing is fetched at runtime, so the app runs offline. */
 window.FX = {
-  asOf: "2026-10-22",
+  asOf: "2026-10-23",
   source: "National Bank of Ukraine official rates (bank.gov.ua)",
-  uahPer: { UAH: 1, USD: 45.0256, EUR: 50.5601 },
+  uahPer: { UAH: 1, USD: 45.051, EUR: 50.435 },
 };
