@@ -6,10 +6,10 @@
 window.DEVAL = {
   suggestedPct: 7.69,
   suggestedWindowYears: 3,
-  windows: { "1": 8.39, "3": 7.69, "5": 11.58 },
-  rateNow: 45.6008,
+  windows: { "1": 8.34, "3": 7.69, "5": 11.61 },
+  rateNow: 45.5923,
   rateThen: 36.5082,
-  thenDate: "2023-10-28",
-  asOf: "2026-10-28",
+  thenDate: "2023-10-29",
+  asOf: "2026-10-29",
   source: "National Bank of Ukraine official rates (bank.gov.ua)",
 };
